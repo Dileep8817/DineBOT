@@ -1,0 +1,77 @@
+# PostgreSQL connection and schema for carts and orders
+
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from contextlib import contextmanager
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://localhost/restaurant_ai"
+)
+
+
+@contextmanager
+def get_connection():
+    conn = psycopg2.connect(DATABASE_URL)
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def init_db():
+    """Create tables if they don't exist. Run once on startup or via script."""
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS cart_items (
+                    id SERIAL PRIMARY KEY,
+                    session_id VARCHAR(255) NOT NULL,
+                    restaurant_id VARCHAR(64) NOT NULL,
+                    item_name VARCHAR(255) NOT NULL,
+                    price NUMERIC(10, 2) NOT NULL,
+                    quantity INTEGER NOT NULL DEFAULT 1,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW(),
+                    UNIQUE(session_id, restaurant_id, item_name)
+                );
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS orders (
+                    id SERIAL PRIMARY KEY,
+                    order_number VARCHAR(32) UNIQUE NOT NULL,
+                    session_id VARCHAR(255) NOT NULL,
+                    restaurant_id VARCHAR(64) NOT NULL,
+                    total NUMERIC(10, 2) NOT NULL,
+                    status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS order_items (
+                    id SERIAL PRIMARY KEY,
+                    order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+                    item_name VARCHAR(255) NOT NULL,
+                    price NUMERIC(10, 2) NOT NULL,
+                    quantity INTEGER NOT NULL
+                );
+            """)
+
+
+def _next_order_number(conn, restaurant_id: str):
+    """Generate daily order number. For high concurrency, consider a SEQUENCE or SELECT FOR UPDATE."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) + 1 FROM orders WHERE restaurant_id = %s AND created_at >= CURRENT_DATE",
+            (restaurant_id,),
+        )
+        n = cur.fetchone()[0]
+    return f"{restaurant_id.upper()}-{n:04d}"

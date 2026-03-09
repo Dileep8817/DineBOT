@@ -1,0 +1,473 @@
+/* DineBot embeddable widget: floating button + chat panel */
+
+.dinebot-widget {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+}
+
+/* Clickable logo button */
+.dinebot-trigger {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: #fff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.dinebot-trigger:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+}
+
+.dinebot-trigger-logo {
+  width: 66px;
+  height: 66px;
+  object-fit: contain;
+}
+
+.dinebot-trigger-fallback {
+  display: none;
+  font-weight: 700;
+  color: #2d7d46;
+  font-size: 12px;
+}
+
+.dinebot-trigger-fallback.show {
+  display: block;
+}
+
+/* Jiggle when opening */
+.dinebot-trigger.jiggle {
+  animation: dinebot-jiggle 0.5s ease-out;
+}
+
+@keyframes dinebot-jiggle {
+  0%   { transform: scale(1) rotate(0); }
+  20%  { transform: scale(1.15) rotate(-3deg); }
+  40%  { transform: scale(1.1) rotate(3deg); }
+  60%  { transform: scale(1.05) rotate(-2deg); }
+  80%  { transform: scale(1.02) rotate(1deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+/* Panel */
+.dinebot-panel {
+  position: absolute;
+  bottom: 80px;
+  right: 0;
+  width: 420px;
+  max-width: calc(100vw - 40px);
+  height: 560px;
+  max-height: calc(100vh - 120px);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: dinebot-panel-in 0.2s ease-out;
+}
+
+@keyframes dinebot-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dinebot-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, var(--dinebot-primary, #2d7d46) 0%, color-mix(in srgb, var(--dinebot-primary, #2d7d46) 70%, black) 100%);
+  color: #fff;
+}
+
+.dinebot-panel-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.dinebot-panel-title {
+  flex: 1;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.dinebot-panel-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.dinebot-panel-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.dinebot-tabs {
+  display: flex;
+  border-bottom: 1px solid #e8e8e8;
+  background: #f8f8f8;
+}
+
+.dinebot-tabs button {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+
+.dinebot-tabs button:hover {
+  color: #333;
+}
+
+.dinebot-tabs button.active {
+  color: var(--dinebot-primary, #2d7d46);
+  background: #fff;
+  border-bottom: 2px solid var(--dinebot-primary, #2d7d46);
+  margin-bottom: -1px;
+}
+
+.dinebot-panel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #fff;
+}
+
+/* Chat */
+.dinebot-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dinebot-msg {
+  display: flex;
+  width: 100%;
+}
+
+.dinebot-msg--user {
+  justify-content: flex-end;
+}
+
+.dinebot-msg--bot {
+  justify-content: flex-start;
+}
+
+.dinebot-msg-bubble {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+}
+
+.dinebot-msg--user .dinebot-msg-bubble {
+  background: var(--dinebot-primary, #2d7d46);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.dinebot-msg--bot .dinebot-msg-bubble {
+  background: #f0f0f0;
+  color: #333;
+  border-bottom-left-radius: 4px;
+}
+
+.dinebot-msg-bubble p {
+  margin: 0 0 4px 0;
+}
+
+.dinebot-msg-bubble p:last-child {
+  margin-bottom: 0;
+}
+
+.dinebot-msg-bubble.typing {
+  display: flex;
+  gap: 4px;
+  padding: 12px 14px;
+}
+
+.dinebot-msg-bubble.typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #999;
+  animation: dinebot-typing 0.6s ease-in-out infinite;
+}
+
+.dinebot-msg-bubble.typing span:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.dinebot-msg-bubble.typing span:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+@keyframes dinebot-typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-4px);
+  }
+}
+
+.dinebot-input-wrap {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid #e8e8e8;
+  background: #fff;
+}
+
+.dinebot-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #333;
+  background: #fff;
+}
+
+.dinebot-input:focus {
+  outline: none;
+  border-color: var(--dinebot-primary, #2d7d46);
+}
+
+.dinebot-quick-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid #eee;
+  background: #fafafa;
+}
+
+.dinebot-quick-chip {
+  padding: 6px 10px;
+  font-size: 11px;
+  border: 1px solid var(--dinebot-primary, #2d7d46);
+  color: var(--dinebot-primary, #2d7d46);
+  background: #fff;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.dinebot-quick-chip:hover {
+  background: var(--dinebot-primary, #2d7d46);
+  color: #fff;
+}
+
+.dinebot-order-confirmed {
+  padding: 8px 12px;
+  font-size: 12px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border-bottom: 1px solid #c8e6c9;
+}
+
+.dinebot-send {
+  padding: 10px 16px;
+  background: var(--dinebot-primary, #2d7d46);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dinebot-send:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--dinebot-primary, #2d7d46) 85%, black);
+}
+
+.dinebot-send:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Menu tab */
+.dinebot-menu-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.dinebot-loading,
+.dinebot-error {
+  margin: 0;
+  padding: 12px;
+  color: #666;
+  font-size: 13px;
+}
+
+.dinebot-error {
+  color: #c00;
+}
+
+.dinebot-menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.dinebot-menu-item strong {
+  font-size: 14px;
+}
+
+.dinebot-menu-desc {
+  margin: 4px 0 0 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.dinebot-btn-add {
+  padding: 6px 12px;
+  background: var(--dinebot-primary, #2d7d46);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.dinebot-btn-add:hover {
+  background: color-mix(in srgb, var(--dinebot-primary, #2d7d46) 85%, black);
+}
+
+/* Cart tab */
+.dinebot-cart {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dinebot-empty {
+  margin: 0;
+  padding: 12px;
+  color: #666;
+  font-size: 13px;
+}
+
+.dinebot-cart-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+}
+
+.dinebot-cart-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+}
+
+.dinebot-cart-item div {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dinebot-btn-icon {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dinebot-btn-icon:hover {
+  background: #f5f5f5;
+}
+
+.dinebot-btn-icon.remove {
+  color: #c00;
+  border-color: #fcc;
+}
+
+.dinebot-qty {
+  min-width: 20px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.dinebot-total {
+  margin: 12px 0 8px 0;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.dinebot-checkout {
+  display: block;
+  padding: 12px;
+  background: var(--dinebot-primary, #2d7d46);
+  color: #fff;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.dinebot-checkout:hover {
+  background: color-mix(in srgb, var(--dinebot-primary, #2d7d46) 85%, black);
+}

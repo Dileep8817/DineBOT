@@ -1,0 +1,10 @@
+# secrets never commit
+.env
+
+# local restaurant data - keep real menus/info out of the repo
+data/
+
+# chroma vector DB
+chroma_data/
+
+.DS_Store
