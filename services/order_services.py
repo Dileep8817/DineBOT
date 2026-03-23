@@ -31,7 +31,7 @@ def add_to_cart(session_id: str, item: dict, quantity: int = 1, restaurant_id: s
                 """,
                 (session_id, restaurant_id, item["name"], item["price"], quantity),
             )
-    return get_cart(session_id)
+    return get_cart(session_id, restaurant_id)
 
 
 def get_cart(session_id: str, restaurant_id: str = "restaurant_1") -> List[dict]:

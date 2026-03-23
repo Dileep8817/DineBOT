@@ -1,0 +1,50 @@
+{
+  "happy_hour": {
+    "when": "Monday–Friday 4:00–6:00 PM at the bar",
+    "details": "$2 off draft beer, wine by the glass, and select appetizers (Calamari, Bruschetta Trio)."
+  },
+  "daily_specials": [
+    {
+      "day": "Monday",
+      "title": "Pasta Night",
+      "description": "Any pasta main with soup or salad.",
+      "discount": "$5 off"
+    },
+    {
+      "day": "Tuesday",
+      "title": "Taco Tuesday (kitchen pop-up)",
+      "description": "Three street-style tacos with chips and salsa.",
+      "discount": "Plate $14 (normally $17)"
+    },
+    {
+      "day": "Wednesday",
+      "title": "Wine Wednesday",
+      "description": "Half off select bottles under $60.",
+      "discount": "50% off bottle"
+    },
+    {
+      "day": "Thursday",
+      "title": "Date Night",
+      "description": "Two entrées and one shared dessert.",
+      "discount": "$45 per couple"
+    },
+    {
+      "day": "Friday",
+      "title": "Fresh Catch",
+      "description": "Chef's fish feature with seasonal sides.",
+      "discount": "Market price (ask server)"
+    }
+  ],
+  "ongoing": [
+    {
+      "title": "Kids eat free",
+      "description": "One free kids meal (12 and under) per adult entrée, Sunday–Thursday before 6 PM.",
+      "valid": "Ongoing; dine-in only"
+    },
+    {
+      "title": "First responders & teachers",
+      "description": "10% discount with valid ID (not combinable with other offers).",
+      "valid": "Ongoing"
+    }
+  ]
+}

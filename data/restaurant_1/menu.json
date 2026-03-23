@@ -1,0 +1,178 @@
+{
+  "restaurant_id": "restaurant_1",
+  "currency": "USD",
+  "categories": ["Starters", "Salads", "Mains", "Sides", "Desserts", "Beverages"],
+  "items": [
+    {
+      "id": "app-001",
+      "name": "Crispy Calamari",
+      "category": "Starters",
+      "price": 14.5,
+      "description": "Lightly fried calamari with lemon aioli and marinara.",
+      "dietary": [],
+      "allergens": ["gluten", "shellfish", "eggs"]
+    },
+    {
+      "id": "app-002",
+      "name": "Bruschetta Trio",
+      "category": "Starters",
+      "price": 11.0,
+      "description": "Tomato-basil, olive tapenade, and whipped ricotta on grilled sourdough.",
+      "dietary": ["vegetarian"],
+      "allergens": ["gluten", "dairy"]
+    },
+    {
+      "id": "app-003",
+      "name": "Spicy Edamame",
+      "category": "Starters",
+      "price": 7.5,
+      "description": "Steamed edamame tossed with togarashi, sea salt, and sesame oil.",
+      "dietary": ["vegan", "gluten-free"],
+      "allergens": ["soy", "sesame"]
+    },
+    {
+      "id": "sal-001",
+      "name": "Garden Greens",
+      "category": "Salads",
+      "price": 10.0,
+      "description": "Mixed greens, cucumber, cherry tomatoes, carrots, lemon vinaigrette.",
+      "dietary": ["vegan", "gluten-free"],
+      "allergens": []
+    },
+    {
+      "id": "sal-002",
+      "name": "Caesar Salad",
+      "category": "Salads",
+      "price": 12.5,
+      "description": "Romaine, parmesan, croutons, classic Caesar dressing. Add grilled chicken +6.",
+      "dietary": ["vegetarian"],
+      "allergens": ["gluten", "dairy", "eggs", "fish"]
+    },
+    {
+      "id": "sal-003",
+      "name": "Mediterranean Bowl",
+      "category": "Salads",
+      "price": 15.0,
+      "description": "Chickpeas, feta, olives, cucumber, quinoa, red wine herb dressing.",
+      "dietary": ["vegetarian", "gluten-free"],
+      "allergens": ["dairy"]
+    },
+    {
+      "id": "main-001",
+      "name": "Herb Roasted Chicken",
+      "category": "Mains",
+      "price": 22.0,
+      "description": "Half chicken, rosemary jus, roasted potatoes, seasonal vegetables.",
+      "dietary": ["gluten-free"],
+      "allergens": []
+    },
+    {
+      "id": "main-002",
+      "name": "Wild Mushroom Risotto",
+      "category": "Mains",
+      "price": 19.5,
+      "description": "Arborio rice, porcini stock, truffle oil, parmesan crisp.",
+      "dietary": ["vegetarian", "gluten-free"],
+      "allergens": ["dairy"]
+    },
+    {
+      "id": "main-003",
+      "name": "Grilled Salmon",
+      "category": "Mains",
+      "price": 26.0,
+      "description": "Atlantic salmon, citrus beurre blanc, asparagus, herbed rice.",
+      "dietary": ["gluten-free"],
+      "allergens": ["fish", "dairy"]
+    },
+    {
+      "id": "main-004",
+      "name": "Classic Cheeseburger",
+      "category": "Mains",
+      "price": 17.5,
+      "description": "Angus patty, cheddar, lettuce, tomato, pickles, brioche bun, fries.",
+      "dietary": [],
+      "allergens": ["gluten", "dairy", "eggs"]
+    },
+    {
+      "id": "main-005",
+      "name": "Margherita Flatbread",
+      "category": "Mains",
+      "price": 14.0,
+      "description": "San Marzano tomato, fresh mozzarella, basil, olive oil.",
+      "dietary": ["vegetarian"],
+      "allergens": ["gluten", "dairy"]
+    },
+    {
+      "id": "main-006",
+      "name": "Vegan Grain Bowl",
+      "category": "Mains",
+      "price": 16.0,
+      "description": "Farro, roasted vegetables, tahini-lemon dressing, toasted seeds.",
+      "dietary": ["vegan"],
+      "allergens": ["gluten", "sesame"]
+    },
+    {
+      "id": "side-001",
+      "name": "Truffle Fries",
+      "category": "Sides",
+      "price": 6.5,
+      "description": "Crispy fries, truffle salt, parmesan (optional on request).",
+      "dietary": ["vegetarian"],
+      "allergens": ["dairy"]
+    },
+    {
+      "id": "side-002",
+      "name": "Garlic Green Beans",
+      "category": "Sides",
+      "price": 5.5,
+      "description": "Blistered green beans, garlic, chili flakes.",
+      "dietary": ["vegan", "gluten-free"],
+      "allergens": []
+    },
+    {
+      "id": "des-001",
+      "name": "Chocolate Lava Cake",
+      "category": "Desserts",
+      "price": 9.0,
+      "description": "Warm dark chocolate center, vanilla bean ice cream.",
+      "dietary": ["vegetarian"],
+      "allergens": ["gluten", "dairy", "eggs"]
+    },
+    {
+      "id": "des-002",
+      "name": "Seasonal Fruit Sorbet",
+      "category": "Desserts",
+      "price": 7.0,
+      "description": "Two scoops; ask your server for today's flavors.",
+      "dietary": ["vegan", "gluten-free", "dairy-free"],
+      "allergens": []
+    },
+    {
+      "id": "bev-001",
+      "name": "Fresh Lemonade",
+      "category": "Beverages",
+      "price": 4.0,
+      "description": "House-made, still or sparkling water option.",
+      "dietary": ["vegan", "gluten-free"],
+      "allergens": []
+    },
+    {
+      "id": "bev-002",
+      "name": "Iced Tea",
+      "category": "Beverages",
+      "price": 3.5,
+      "description": "Black or herbal; free refills.",
+      "dietary": ["vegan", "gluten-free"],
+      "allergens": []
+    },
+    {
+      "id": "bev-003",
+      "name": "Espresso",
+      "category": "Beverages",
+      "price": 3.75,
+      "description": "Double shot.",
+      "dietary": ["vegan", "gluten-free"],
+      "allergens": []
+    }
+  ]
+}

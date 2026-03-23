@@ -8,11 +8,12 @@ import re
 from dotenv import load_dotenv
 load_dotenv()
 
+from config import DATA_DIR
+
 logger = logging.getLogger(__name__)
 
 # Same validation as menu_services to avoid path traversal
 RESTAURANT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
-DATA_DIR = "data"
 CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "chroma_data")
 COLLECTION_NAME = "restaurant_chunks"
 OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
@@ -53,7 +54,7 @@ def get_embeddings_batch(texts: list):
 def _chunk_restaurant(restaurant_id: str):
     """Load menu, info, specials, hours and return list of (text, metadata)."""
     _validate_restaurant_id(restaurant_id)
-    base = os.path.join(DATA_DIR, restaurant_id)
+    base = str(DATA_DIR / restaurant_id)
     if not os.path.isdir(base):
         return []
 
@@ -79,6 +80,8 @@ def _chunk_restaurant(restaurant_id: str):
             info = json.load(f)
         parts = [f"Restaurant: {restaurant_id}. {info.get('name', '')}. {info.get('description', '')}"]
         parts.append(f"Address: {info.get('address', '')}. Phone: {info.get('phone', '')}. Email: {info.get('email', '')}.")
+        if info.get("policies"):
+            parts.append(f"Policies: {info.get('policies', '')}")
         if info.get("delivery_available"):
             parts.append(f"Delivery: yes, fee ${info.get('delivery_fee')}, minimum ${info.get('delivery_minimum')}.")
         if info.get("pickup_available"):
@@ -91,6 +94,12 @@ def _chunk_restaurant(restaurant_id: str):
     if os.path.isfile(specials_path):
         with open(specials_path) as f:
             specials = json.load(f)
+        hh = specials.get("happy_hour")
+        if isinstance(hh, dict) and (hh.get("when") or hh.get("details")):
+            text = (
+                f"Restaurant {restaurant_id}. Happy hour: {hh.get('when', '')} — {hh.get('details', '')}"
+            )
+            chunks.append((text, {"restaurant_id": restaurant_id, "source": "specials_happy_hour"}))
         for i, s in enumerate(specials.get("daily_specials", [])):
             text = f"Restaurant {restaurant_id}. Daily special ({s.get('day', '')}): {s.get('title', '')} — {s.get('description', '')} ({s.get('discount', '')})"
             chunks.append((text, {"restaurant_id": restaurant_id, "source": "specials", "index": i}))
@@ -162,12 +171,13 @@ def index_restaurant(restaurant_id: str) -> int:
 
 def index_all_restaurants() -> int:
     """Discover data/<restaurant_id>/ and index each. Returns total chunks indexed."""
-    if not os.path.isdir(DATA_DIR):
+    data_dir = str(DATA_DIR)
+    if not os.path.isdir(data_dir):
         logger.warning("RAG: no data/ directory, skipping index")
         return 0
     total = 0
-    for name in os.listdir(DATA_DIR):
-        path = os.path.join(DATA_DIR, name)
+    for name in os.listdir(data_dir):
+        path = os.path.join(data_dir, name)
         if os.path.isdir(path) and RESTAURANT_ID_PATTERN.match(name):
             try:
                 total += index_restaurant(name)

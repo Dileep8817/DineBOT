@@ -1,8 +1,10 @@
 # secrets never commit
 .env
 
-# local restaurant data - keep real menus/info out of the repo
-data/
+# Local-only restaurant data (optional overrides)
+data/local/
+
+# Track sample restaurant JSON; add other venues under data/ as needed (gitignore those dirs if private)
 
 # chroma vector DB
 chroma_data/

@@ -3,6 +3,8 @@
 import json
 import re
 
+from config import DATA_DIR
+
 RESTAURANT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 
 # safety protection protocal
@@ -11,15 +13,19 @@ def _validate_restaurant_id(restaurant_id: str) -> None:
         raise ValueError("restaurant_id must be 1-64 chars: letters, numbers, underscore, hyphen only")
 
 
+def _data_path(restaurant_id: str, filename: str) -> str:
+    return str(DATA_DIR / restaurant_id / filename)
+
+
 def load_menu(restaurant_id: str):
     _validate_restaurant_id(restaurant_id)
-    with open(f"data/{restaurant_id}/menu.json") as f:
+    with open(_data_path(restaurant_id, "menu.json")) as f:
         return json.load(f)
 
 
 def load_hours(restaurant_id: str):
     _validate_restaurant_id(restaurant_id)
-    with open(f"data/{restaurant_id}/hours.json") as f:
+    with open(_data_path(restaurant_id, "hours.json")) as f:
         return json.load(f)
     
 # returns the MENU data
@@ -57,7 +63,7 @@ def get_menu_item(restaurant_id: str, name: str):
 
 def load_restaurant_info(restaurant_id: str):
     _validate_restaurant_id(restaurant_id)
-    with open(f"data/{restaurant_id}/info.json") as f:
+    with open(_data_path(restaurant_id, "info.json")) as f:
         return json.load(f)
 
 
@@ -67,7 +73,7 @@ def get_restaurant_info(restaurant_id: str):
 
 def load_specials(restaurant_id: str):
     _validate_restaurant_id(restaurant_id)
-    with open(f"data/{restaurant_id}/specials.json") as f:
+    with open(_data_path(restaurant_id, "specials.json")) as f:
         return json.load(f)
 
 

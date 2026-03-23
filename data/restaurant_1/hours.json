@@ -1,0 +1,11 @@
+{
+  "Monday": "11:30 AM – 9:00 PM (kitchen closes 8:30 PM)",
+  "Tuesday": "11:30 AM – 9:00 PM (kitchen closes 8:30 PM)",
+  "Wednesday": "11:30 AM – 9:00 PM (kitchen closes 8:30 PM)",
+  "Thursday": "11:30 AM – 10:00 PM (kitchen closes 9:30 PM)",
+  "Friday": "11:30 AM – 10:30 PM (kitchen closes 10:00 PM)",
+  "Saturday": "10:00 AM – 10:30 PM (brunch 10 AM–2 PM; kitchen closes 10:00 PM)",
+  "Sunday": "10:00 AM – 9:00 PM (brunch 10 AM–2 PM; kitchen closes 8:30 PM)",
+  "Holiday_hours": "Closed Thanksgiving Day and Christmas Day. New Year's Eve: 11:30 AM – 8:00 PM.",
+  "Reservations_recommended": "Weekends after 6 PM and parties of 6+; walk-ins welcome at the bar."
+}
