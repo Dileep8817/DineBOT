@@ -1,12 +1,34 @@
-# secrets never commit
+# Secrets — never commit
 .env
+.env.*
+!.env.example
 
-# Local-only restaurant data (optional overrides)
-data/local/
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.Python
+*.egg-info/
+.eggs/
 
-# Track sample restaurant JSON; add other venues under data/ as needed (gitignore those dirs if private)
+# Restaurant JSON (your real menu, hours, etc.) — copy from sample_data/ locally
+data/
 
-# chroma vector DB
+# Chroma vector DB (can contain embedded content from your data)
 chroma_data/
 
+# Local SQLite database
+dinebot.db
+*.db
+
+# Frontend env / build
+react-frontend/.env
+react-frontend/.env.local
+react-frontend/build/
+react-frontend/node_modules/
+
+# OS / editor
 .DS_Store
+.idea/
+.vscode/

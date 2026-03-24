@@ -10,35 +10,49 @@ LLM-powered chatbot for restaurants: take orders, answer questions about the men
 pip install -r requirements.txt
 ```
 
-### 2. PostgreSQL
+### 2. Environment and secrets
 
-Create a database and set the connection URL:
+Copy `.env.example` to `.env` and set values **locally**. Never commit `.env` or paste API keys into tracked files.
+
+- **OpenAI:** set `OPENAI_API_KEY` for `/chat` and optional RAG embeddings.
+- **Database:** omit `DATABASE_URL` to use local **SQLite** (`dinebot.db`), or set a PostgreSQL URL. If PostgreSQL is unreachable, the server can fall back to SQLite (see `.env.example`).
+
+### 3. Restaurant data (menu, hours, info, specials)
+
+Real venue data lives under `data/<restaurant_id>/` and is **gitignored** so it is not pushed to GitHub.
+
+After cloning, copy the sample once:
 
 ```bash
-# Example: create database (run in psql or pgAdmin)
-createdb restaurant_ai
+mkdir -p data && cp -R sample_data/restaurant_1 data/
+```
 
-# Set env (or copy .env.example to .env)
-export DATABASE_URL=postgresql://localhost/restaurant_ai
-# Or with user/password:
-# export DATABASE_URL=postgresql://user:password@localhost:5432/restaurant_ai
+Then edit `data/restaurant_1/*.json` with your real menu and information. The sample files are placeholders only.
+
+### 4. PostgreSQL (optional)
+
+If you use Postgres instead of SQLite, create a database and set `DATABASE_URL`:
+
+```bash
+createdb restaurant_ai
+export DATABASE_URL=postgresql://YOUR_USER@localhost:5432/restaurant_ai
 ```
 
 Tables (`cart_items`, `orders`, `order_items`) are created automatically on first run.
 
-### 3. Run backend
+### 5. Run backend
 
 ```bash
 uvicorn main:app --reload
 ```
 
-### 4. Run frontend
+### 6. Run frontend
 
 ```bash
 cd react-frontend && npm install && npm start
 ```
 
-### 5. DineBot logo (widget)
+### 7. DineBot logo (widget)
 
 The embeddable widget uses the DineBot logo as the clickable button. Copy your logo image to:
 
@@ -69,7 +83,7 @@ The widget shows a floating DineBot logo; clicking it opens a panel with Chat (w
 - **Delivery / pickup** – Info from restaurant `info.json`
 - **Specials** – Daily and ongoing promos
 
-All cart and order data is stored in PostgreSQL.
+Cart and order data are stored in **PostgreSQL** (if configured) or **SQLite** locally.
 
 ## API
 
@@ -85,6 +99,8 @@ All cart and order data is stored in PostgreSQL.
 
 ## Security
 
+- **Secrets:** Keep `.env` out of version control; rotate any API key that was ever committed or shared.
+- **Restaurant data:** The `data/` directory is ignored by git; use `sample_data/` as a template only.
 - **Rate limiting:** `POST /chat` is limited to 30 requests/minute per IP (SlowAPI).
 - **Input validation:** Chat message length (1–2000 chars), session_id format, cart quantity (1–99), and `restaurant_id` (path traversal prevented).
 - **Optional API key:** Set `API_KEY` or `API_KEYS` in `.env` and use `Depends(verify_api_key)` on admin routes (see `auth.py`).
