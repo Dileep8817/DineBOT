@@ -1,8 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
+import { apiUrl } from "./apiConfig";
 import "./App.css";
-
-const API_BASE = "http://127.0.0.1:8000";
 const SESSION_ID = "session_" + Math.random().toString(36).slice(2, 9);
 
 function formatBotResponse(data) {
@@ -80,7 +79,7 @@ function App() {
     setMenuLoading(true);
     setMenuError(false);
     try {
-      const res = await axios.get(`${API_BASE}/menu`);
+      const res = await axios.get(apiUrl("/menu"));
       setMenu(res.data.items || []);
     } catch (e) {
       console.error(e);
@@ -93,7 +92,7 @@ function App() {
 
   const loadCart = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/cart`, {
+      const res = await axios.get(apiUrl("/cart"), {
         params: { session_id: SESSION_ID },
       });
       const data = res.data || [];
@@ -113,7 +112,7 @@ function App() {
     setMessages((m) => [...m, { role: "user", text, key: Date.now() + "u" }]);
     setLoading(true);
     try {
-      const res = await axios.post(`${API_BASE}/chat`, {
+      const res = await axios.post(apiUrl("/chat"), {
         session_id: SESSION_ID,
         message: text,
       });
@@ -145,7 +144,7 @@ function App() {
         ...m,
         {
           role: "bot",
-          text: `Something went wrong${hint}. Make sure the API is running at ${API_BASE}.`,
+          text: `Something went wrong${hint}. Start the API (uvicorn) and use the dev proxy or set REACT_APP_API_BASE.`,
           key: Date.now() + "err",
         },
       ]);
@@ -156,7 +155,7 @@ function App() {
 
   const addToCart = async (name) => {
     try {
-      await axios.post(`${API_BASE}/cart/add`, null, {
+      await axios.post(apiUrl("/cart/add"), null, {
         params: { session_id: SESSION_ID, name },
       });
       loadCart();
@@ -171,7 +170,7 @@ function App() {
       return;
     }
     try {
-      await axios.post(`${API_BASE}/cart/update`, null, {
+      await axios.post(apiUrl("/cart/update"), null, {
         params: { session_id: SESSION_ID, name, quantity },
       });
       loadCart();
@@ -182,7 +181,7 @@ function App() {
 
   const removeItem = async (name) => {
     try {
-      await axios.post(`${API_BASE}/cart/remove`, null, {
+      await axios.post(apiUrl("/cart/remove"), null, {
         params: { session_id: SESSION_ID, name },
       });
       loadCart();

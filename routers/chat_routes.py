@@ -2,9 +2,13 @@
 
 import json
 import logging
-from fastapi import APIRouter, Request
-from models.chat_models import ChatRequest
+import time
+
+from fastapi import APIRouter, Depends, Request
+
+from auth import require_api_key
 from config import limiter
+from models.chat_models import ChatRequest
 
 from services.chat_tools import (
     tool_get_menu,
@@ -28,7 +32,7 @@ from services.rag_service import retrieve as rag_retrieve
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_api_key)])
 
 # In-memory conversation history: session_id -> list of OpenAI-format messages (trimmed to last N).
 MAX_HISTORY_MESSAGES = 20
@@ -104,7 +108,17 @@ async def chat_endpoint(request: Request, body: ChatRequest):
     if not message:
         return {"response": "Send a message to get help.", "cart": _get_cart_for_response(session_id, rid)}
 
-    logger.info("chat request restaurant_id=%s session_id=%s message_len=%d", rid, session_id, len(message))
+    client_host = request.client.host if request.client else "unknown"
+    logger.info(
+        "chat_session_start restaurant_id=%s session_id=%s message_len=%d client_ip=%s",
+        rid,
+        session_id,
+        len(message),
+        client_host,
+    )
+    t0 = time.perf_counter()
+    tool_rounds = 0
+    tools_used: list = []
 
     # Check if LLM is configured
     try:
@@ -140,6 +154,9 @@ async def chat_endpoint(request: Request, body: ChatRequest):
             content, tool_calls = chat_completion(current_messages, tools=TOOLS)
 
             if tool_calls:
+                tool_rounds += 1
+                for tc in tool_calls:
+                    tools_used.append(tc.get("name", "?"))
                 # Append assistant message with tool_calls (OpenAI format)
                 assistant_msg = {"role": "assistant", "content": content or None, "tool_calls": []}
                 for tc in tool_calls:
@@ -168,11 +185,29 @@ async def chat_endpoint(request: Request, body: ChatRequest):
             final_content = content or "I'm not sure how to help with that. You can ask about the menu, hours, cart, or checkout."
             break
     except Exception as e:
-        logger.exception("LLM or tool execution failed: %s", e)
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        logger.exception(
+            "chat_session_error restaurant_id=%s session_id=%s duration_ms=%d error=%s",
+            rid,
+            session_id,
+            elapsed_ms,
+            e,
+        )
         return {
             "response": "Something went wrong. Please try again.",
             "cart": _get_cart_for_response(session_id, rid),
         }
+
+    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+    logger.info(
+        "chat_session_end restaurant_id=%s session_id=%s duration_ms=%d tool_rounds=%d tools=%s response_len=%d",
+        rid,
+        session_id,
+        elapsed_ms,
+        tool_rounds,
+        tools_used,
+        len(final_content or ""),
+    )
 
     # Persist history: append user and this turn's assistant/tool messages
     turn_messages = []

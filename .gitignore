@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!react-frontend/.env.development.example
 
 # Python
 venv/
@@ -18,9 +19,8 @@ data/
 # Chroma vector DB (can contain embedded content from your data)
 chroma_data/
 
-# Local SQLite database
+# Local DB file if present (Postgres is canonical; ignore stray SQLite from old runs)
 dinebot.db
-*.db
 
 # Frontend env / build
 react-frontend/.env

@@ -1,7 +1,12 @@
-# Order and cart API with input validation
+# Order and cart API with validation, API key, and rate limiting
 
 import re
-from fastapi import APIRouter, HTTPException, Query
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+
+from auth import require_api_key
+from config import limiter
+from services.menu_services import get_menu_item
 from services.order_services import (
     add_to_cart,
     get_cart,
@@ -12,9 +17,8 @@ from services.order_services import (
     get_order_status,
     update_order_status,
 )
-from services.menu_services import get_menu_item
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_api_key)])
 
 SESSION_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
 ITEM_NAME_MAX_LEN = 200
@@ -22,18 +26,26 @@ ITEM_NAME_MAX_LEN = 200
 
 def _validate_session_id(session_id: str) -> None:
     if not SESSION_ID_PATTERN.match(session_id):
-        raise HTTPException(status_code=400, detail="session_id: 1-128 chars, alphanumeric, underscore, hyphen only")
+        raise HTTPException(
+            status_code=400,
+            detail="session_id: 1-128 chars, alphanumeric, underscore, hyphen only",
+        )
 
 
 def _validate_item_name(name: str) -> str:
     n = (name or "").strip()
     if not n or len(n) > ITEM_NAME_MAX_LEN:
-        raise HTTPException(status_code=400, detail=f"name must be 1-{ITEM_NAME_MAX_LEN} characters")
+        raise HTTPException(
+            status_code=400,
+            detail=f"name must be 1-{ITEM_NAME_MAX_LEN} characters",
+        )
     return n
 
 
 @router.post("/cart/add")
+@limiter.limit("90/minute")
 async def add_item(
+    request: Request,
     session_id: str = Query(..., min_length=1, max_length=128),
     name: str = Query(..., min_length=1, max_length=ITEM_NAME_MAX_LEN),
 ):
@@ -47,19 +59,25 @@ async def add_item(
 
 
 @router.get("/cart")
-async def cart(session_id: str = Query(..., min_length=1, max_length=128)):
+@limiter.limit("120/minute")
+async def cart(request: Request, session_id: str = Query(..., min_length=1, max_length=128)):
     _validate_session_id(session_id)
     return get_cart(session_id)
 
 
 @router.post("/cart/clear")
-async def clear(session_id: str = Query(..., min_length=1, max_length=128)):
+@limiter.limit("60/minute")
+async def clear(request: Request, session_id: str = Query(..., min_length=1, max_length=128)):
     _validate_session_id(session_id)
     return clear_cart(session_id)
 
 
 @router.get("/cart/summary")
-async def cart_summary(session_id: str = Query(..., min_length=1, max_length=128)):
+@limiter.limit("120/minute")
+async def cart_summary(
+    request: Request,
+    session_id: str = Query(..., min_length=1, max_length=128),
+):
     _validate_session_id(session_id)
     cart = get_cart(session_id)
     total = sum(item["price"] * item["quantity"] for item in cart)
@@ -67,7 +85,9 @@ async def cart_summary(session_id: str = Query(..., min_length=1, max_length=128
 
 
 @router.post("/cart/remove")
+@limiter.limit("90/minute")
 async def remove_cart(
+    request: Request,
     session_id: str = Query(..., min_length=1, max_length=128),
     name: str = Query(..., min_length=1, max_length=ITEM_NAME_MAX_LEN),
 ):
@@ -77,7 +97,9 @@ async def remove_cart(
 
 
 @router.post("/cart/update")
+@limiter.limit("90/minute")
 async def update_item(
+    request: Request,
     session_id: str = Query(..., min_length=1, max_length=128),
     name: str = Query(..., min_length=1, max_length=ITEM_NAME_MAX_LEN),
     quantity: int = Query(..., ge=1, le=99),
@@ -86,8 +108,13 @@ async def update_item(
     name = _validate_item_name(name)
     return update_cart_item(session_id, name, quantity)
 
+
 @router.post("/order/checkout")
-async def checkout(session_id: str = Query(..., min_length=1, max_length=128)):
+@limiter.limit("30/minute")
+async def checkout(
+    request: Request,
+    session_id: str = Query(..., min_length=1, max_length=128),
+):
     _validate_session_id(session_id)
     result = place_order(session_id)
     if result.get("error"):
@@ -102,8 +129,15 @@ async def checkout(session_id: str = Query(..., min_length=1, max_length=128)):
 
 
 @router.get("/order/status")
+@limiter.limit("120/minute")
 async def order_status(
-    order_number: str = Query(..., min_length=1, max_length=64, description="Order number e.g. RESTAURANT_1-0001 or numeric id"),
+    request: Request,
+    order_number: str = Query(
+        ...,
+        min_length=1,
+        max_length=64,
+        description="Order number e.g. RESTAURANT_1-0001 or numeric id",
+    ),
     restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
 ):
     result = get_order_status(order_number, restaurant_id)
@@ -113,7 +147,9 @@ async def order_status(
 
 
 @router.patch("/order/status")
+@limiter.limit("60/minute")
 async def set_order_status(
+    request: Request,
     order_number: str = Query(..., min_length=1, max_length=64),
     status: str = Query(..., min_length=1, max_length=32),
     restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),

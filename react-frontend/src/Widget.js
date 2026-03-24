@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
+import { apiUrl } from "./apiConfig";
 import "./Widget.css";
 
-const DEFAULT_API_BASE = "http://127.0.0.1:8000";
 const LOGO_URL = process.env.PUBLIC_URL ? process.env.PUBLIC_URL + "/dinebot-logo.png" : "/dinebot-logo.png";
 
 function getSessionId() {
@@ -27,10 +27,6 @@ function getThemeFromUrl() {
 }
 
 const QUICK_PROMPTS = ["What's on the menu?", "Hours?", "Add Margherita Pizza to cart", "View my cart"];
-
-function getApiBase() {
-  return process.env.REACT_APP_API_BASE || DEFAULT_API_BASE;
-}
 
 function formatBotResponse(data) {
   if (typeof data === "string") return data;
@@ -77,7 +73,6 @@ function Widget() {
   const [lastOrderNumber, setLastOrderNumber] = useState(null);
   const messagesEndRef = useRef(null);
 
-  const apiBase = getApiBase();
   const sessionId = getSessionId();
   const restaurantId = getRestaurantId();
   const theme = getThemeFromUrl();
@@ -95,7 +90,7 @@ function Widget() {
     setMenuLoading(true);
     setMenuError(false);
     try {
-      const res = await axios.get(`${apiBase}/menu`, { params: { restaurant_id: restaurantId } });
+      const res = await axios.get(apiUrl("/menu"), { params: { restaurant_id: restaurantId } });
       setMenu(res.data.items || []);
     } catch (e) {
       setMenuError(true);
@@ -107,7 +102,7 @@ function Widget() {
 
   const loadCart = async () => {
     try {
-      const res = await axios.get(`${apiBase}/cart`, { params: { session_id: sessionId } });
+      const res = await axios.get(apiUrl("/cart"), { params: { session_id: sessionId } });
       const data = res.data || [];
       const list = Array.isArray(data) ? data : [];
       setCart(list);
@@ -125,7 +120,7 @@ function Widget() {
     setMessages((m) => [...m, { role: "user", text, key: Date.now() + "u" }]);
     setLoading(true);
     try {
-      const res = await axios.post(`${apiBase}/chat`, {
+      const res = await axios.post(apiUrl("/chat"), {
         session_id: sessionId,
         message: text,
         restaurant_id: restaurantId,
@@ -154,7 +149,7 @@ function Widget() {
 
   const addToCart = async (name) => {
     try {
-      await axios.post(`${apiBase}/cart/add`, null, { params: { session_id: sessionId, name } });
+      await axios.post(apiUrl("/cart/add"), null, { params: { session_id: sessionId, name } });
       loadCart();
     } catch (e) {
       console.error(e);
@@ -164,13 +159,13 @@ function Widget() {
   const updateItem = async (name, quantity) => {
     if (quantity <= 0) {
       try {
-        await axios.post(`${apiBase}/cart/remove`, null, { params: { session_id: sessionId, name } });
+        await axios.post(apiUrl("/cart/remove"), null, { params: { session_id: sessionId, name } });
       } catch (_) {}
       loadCart();
       return;
     }
     try {
-      await axios.post(`${apiBase}/cart/update`, null, { params: { session_id: sessionId, name, quantity } });
+      await axios.post(apiUrl("/cart/update"), null, { params: { session_id: sessionId, name, quantity } });
       loadCart();
     } catch (e) {
       console.error(e);
@@ -179,7 +174,7 @@ function Widget() {
 
   const removeItem = async (name) => {
     try {
-      await axios.post(`${apiBase}/cart/remove`, null, { params: { session_id: sessionId, name } });
+      await axios.post(apiUrl("/cart/remove"), null, { params: { session_id: sessionId, name } });
       loadCart();
     } catch (e) {
       console.error(e);

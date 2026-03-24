@@ -1,34 +1,36 @@
 # main file for creating/running the server
 
+import logging
 import os
+
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+from auth import assert_api_keys_configured
 from config import limiter
 from database import init_db
 from routers.menu_routes import router as menu_router
 from routers.order_routes import router as order_router
 from routers.chat_routes import router as chat_router
-import logging
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 
 def on_startup():
+    assert_api_keys_configured()
     init_db()
     try:
         from services.rag_service import index_all_restaurants
+
         n = index_all_restaurants()
         if n > 0:
-            import logging
             logging.getLogger(__name__).info("RAG indexed %d chunks on startup", n)
     except Exception as e:
-        import logging
         logging.getLogger(__name__).warning("RAG indexing skipped or failed: %s", e)
 
 
@@ -40,21 +42,11 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 @app.exception_handler(ValueError)
 async def value_error_handler(request, exc):
     from fastapi.responses import JSONResponse
+
     return JSONResponse(status_code=400, content={"detail": str(exc)})
 
 
 app.add_event_handler("startup", on_startup)
-
-_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
-origins = [o.strip() for o in _origins.split(",") if o.strip()]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 app.include_router(menu_router)
 app.include_router(order_router)
@@ -71,10 +63,11 @@ async def health():
     """Health check for monitoring / load balancers."""
     try:
         from database import get_connection
+
         with get_connection():
             pass
         return {"status": "ok", "database": "connected"}
     except Exception as e:
         from fastapi.responses import JSONResponse
-        return JSONResponse(status_code=503, content={"status": "error", "database": str(e)})
 
+        return JSONResponse(status_code=503, content={"status": "error", "database": str(e)})

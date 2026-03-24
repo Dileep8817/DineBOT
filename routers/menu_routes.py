@@ -1,29 +1,52 @@
-# this file has the menu routes that the main file can pick up from
+# Menu and restaurant read routes (API key + rate limit)
 
-from fastapi import APIRouter, Query, HTTPException
-from services.menu_services import get_menu, get_hours, search_menu, get_menu_item, get_restaurant_info, get_specials
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-router = APIRouter()
+from auth import require_api_key
+from config import limiter
+from services.menu_services import (
+    get_menu,
+    get_hours,
+    search_menu,
+    get_menu_item,
+    get_restaurant_info,
+    get_specials,
+)
+
+router = APIRouter(dependencies=[Depends(require_api_key)])
+
 
 @router.get("/menu")
-async def menu(restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64)):
+@limiter.limit("120/minute")
+async def menu(
+    request: Request,
+    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
+):
     return get_menu(restaurant_id)
 
+
 @router.get("/hours")
-async def hours():
+@limiter.limit("120/minute")
+async def hours(request: Request):
     return get_hours("restaurant_1")
 
+
 @router.get("/search-menu")
+@limiter.limit("120/minute")
 async def search_menu_endpoint(
+    request: Request,
     restaurant_id: str = Query(...),
-    q: str = Query(...)
-    ):
+    q: str = Query(...),
+):
     return search_menu(restaurant_id, q)
 
+
 @router.get("/menu-item")
+@limiter.limit("120/minute")
 async def menu_item(
+    request: Request,
     restaurant_id: str = Query(...),
-    name: str = Query(...)
+    name: str = Query(...),
 ):
     item = get_menu_item(restaurant_id, name)
     if not item:
@@ -32,10 +55,18 @@ async def menu_item(
 
 
 @router.get("/restaurant-info")
-async def restaurant_info(restaurant_id: str = Query("restaurant_1")):
+@limiter.limit("120/minute")
+async def restaurant_info(
+    request: Request,
+    restaurant_id: str = Query("restaurant_1"),
+):
     return get_restaurant_info(restaurant_id)
 
 
 @router.get("/specials")
-async def specials(restaurant_id: str = Query("restaurant_1")):
+@limiter.limit("120/minute")
+async def specials(
+    request: Request,
+    restaurant_id: str = Query("restaurant_1"),
+):
     return get_specials(restaurant_id)
