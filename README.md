@@ -31,13 +31,7 @@ Protected routes require **`X-API-Key`** (the React dev proxy adds it for `/api/
 
 ### 4. Restaurant data (menu, hours, info, specials)
 
-Real venue data lives under `data/<restaurant_id>/` (gitignored). After cloning:
-
-```bash
-mkdir -p data && cp -R sample_data/restaurant_1 data/
-```
-
-Edit `data/restaurant_1/*.json` for your venue.
+Real venue data lives under **`data/<restaurant_id>/`** (gitignored — not in the remote repo). After cloning, create that tree locally and add your own JSON files (see **`docs/RESTAURANT_DATA.md`** for layout). Use a private backup or export; do not rely on the repo for menu content.
 
 ### 5. Run backend
 
@@ -89,5 +83,5 @@ Optional: `react-frontend/public/dinebot-logo.png`
 ## Security
 
 - **Secrets:** `.env` gitignored; rotate leaked keys.  
-- **Data:** `data/` gitignored; use `sample_data/` as template.  
+- **Data:** `data/` and `sample_data/` gitignored — keep restaurant JSON only on trusted machines.  
 - **Rate limiting** and **input validation** on chat and cart routes.  

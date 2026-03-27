@@ -17,8 +17,9 @@ __pycache__/
 *.egg-info/
 .eggs/
 
-# Restaurant JSON (your real menu, hours, etc.) — copy from sample_data/ locally
+# Restaurant JSON — keep only on your machine (menus, hours, pricing)
 data/
+sample_data/
 
 # Chroma vector DB (can contain embedded content from your data)
 chroma_data/
