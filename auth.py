@@ -1,9 +1,21 @@
 # API key authentication for protected routes
 
+import logging
 import os
 from typing import Optional
 
+from pathlib import Path
+
+from dotenv import load_dotenv
 from fastapi import Header, HTTPException
+
+_PROJECT = Path(__file__).resolve().parent
+load_dotenv(_PROJECT / ".env")
+
+logger = logging.getLogger(__name__)
+
+# Matches react-frontend dev proxy default (see .env.development.example)
+DEV_DEFAULT_API_KEY = "dinebot-local-dev"
 
 API_KEYS = set(
     k.strip()
@@ -13,14 +25,17 @@ API_KEYS = set(
 if not API_KEYS and os.getenv("API_KEY"):
     API_KEYS.add(os.getenv("API_KEY", "").strip())
 
+if not API_KEYS:
+    logger.warning(
+        "No API_KEY in environment; using dev default %r (set API_KEY for production).",
+        DEV_DEFAULT_API_KEY,
+    )
+    API_KEYS.add(DEV_DEFAULT_API_KEY)
+
 
 def assert_api_keys_configured() -> None:
-    """Call on startup; fail fast if no keys are configured."""
-    if not API_KEYS:
-        raise RuntimeError(
-            "API_KEY or API_KEYS must be set in the environment. "
-            "Clients must send the key in the X-API-Key header (or use the React dev proxy)."
-        )
+    """Startup hook; keys are always set (env or dev default)."""
+    assert API_KEYS
 
 
 def require_api_key(x_api_key: Optional[str] = Header(None, alias="X-API-Key")) -> str:

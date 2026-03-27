@@ -46,7 +46,7 @@ def tool_update_cart_item(session_id: str, name: str, quantity: int, restaurant_
     return update_cart_item(session_id, name, quantity, restaurant_id)
 
 def tool_checkout_cart(session_id: str, restaurant_id: str = "restaurant_1"):
-    """Creates order from cart, clears cart, returns order number and checkout link."""
+    """Creates order from cart, clears cart; returns order_id, order_number, total for in-app payment."""
     result = place_order(session_id, restaurant_id)
     if result.get("error"):
         return result
@@ -54,8 +54,7 @@ def tool_checkout_cart(session_id: str, restaurant_id: str = "restaurant_1"):
         "cart": [],
         "total": result["total"],
         "order_number": result["order_number"],
-        "order_id": result["order_id"],
-        "checkout_url": result["checkout_url"],
+        "order_id": result["order_id"]
     }
 
 def tool_get_order_status(order_number_or_id: str, restaurant_id: str = "restaurant_1"):

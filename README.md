@@ -12,17 +12,22 @@ pip install -r requirements.txt
 
 ### 2. PostgreSQL
 
-Create a database and set `DATABASE_URL` in `.env` (see `.env.example`). Tables (`cart_items`, `orders`, `order_items`) are created on startup.
+Create a database and set **`DATABASE_URL`** in `.env` (see `.env.example`). Cart and order tables are created on startup.
+
+```bash
+createdb restaurant_ai
+# DATABASE_URL=postgresql://YOUR_USER@localhost:5432/restaurant_ai
+```
 
 ### 3. Environment and secrets
 
-Copy `.env.example` to `.env` in the **project root**. Required:
+Copy `.env.example` to `.env` in the **project root** (never commit `.env`).
 
-- **`DATABASE_URL`** — PostgreSQL connection string  
-- **`API_KEY`** — shared secret; every protected API route requires header `X-API-Key: <your key>`  
-- **`OPENAI_API_KEY`** — for `/chat` and optional RAG embeddings  
+- **`DATABASE_URL`** — **required** (PostgreSQL only).  
+- **`OPENAI_API_KEY`** — required for `/chat` (and RAG embeddings if used).  
+- **`API_KEY`** — optional locally: if unset, server uses **`dinebot-local-dev`** (same as `react-frontend/.env.development`). Use a strong key in production.
 
-Never commit `.env`.
+Protected routes require **`X-API-Key`** (the React dev proxy adds it for `/api/*`).
 
 ### 4. Restaurant data (menu, hours, info, specials)
 
@@ -44,53 +49,45 @@ uvicorn main:app --reload --host 127.0.0.1 --port 8000
 
 ### 6. Run frontend (dev)
 
-The React dev server proxies **`/api/*`** to the backend and adds **`X-API-Key`** from a **server-side** env file so the key is not baked into the JS bundle.
-
-1. Copy `react-frontend/.env.development.example` to `react-frontend/.env.development`.  
-2. Set **`DINEBOT_PROXY_API_KEY`** to the **same value** as **`API_KEY`** in the root `.env`.  
-3. Start the app:
+`react-frontend/.env.development` sets **`DINEBOT_PROXY_API_KEY=dinebot-local-dev`** by default. If you set **`API_KEY`** in the root `.env`, use the same value in **`DINEBOT_PROXY_API_KEY`**.
 
 ```bash
 cd react-frontend && npm install && npm start
 ```
 
-The UI calls paths like `/api/menu`; the proxy rewrites them to `http://127.0.0.1:8000/menu` and attaches the key.
+The UI calls `/api/menu`, etc.; the proxy forwards to `http://127.0.0.1:8000` and attaches the key.
 
 ### 7. Production / separate API host
 
-There is **no CORS middleware** by design: avoid exposing the API key in the browser.
-
-- Prefer **one origin** (e.g. nginx: `/` → static React, `/api` → FastAPI) and let the **edge** attach `X-API-Key`, or  
-- Set **`REACT_APP_API_BASE`** to your API URL only if that API is reachable **without** a browser secret (e.g. public read-only) — not recommended for this app’s write endpoints.
+There is **no CORS middleware**. Prefer one origin (e.g. nginx) or an edge that adds **`X-API-Key`**.
 
 ### 8. DineBot logo (widget)
 
-Place your logo at `react-frontend/public/dinebot-logo.png` (optional; text fallback if missing).
+Optional: `react-frontend/public/dinebot-logo.png`
 
 ## Embeddable widget
 
-- **Widget URL:** `/widget` or `?embed=1` on the app URL.  
+- **Widget URL:** `/widget` or `?embed=1`  
 - **iframe:** `<iframe src="https://your-frontend-url/widget?restaurant_id=restaurant_1" ...></iframe>`  
 - **Query params:** `restaurant_id`, `primary_color`, `restaurant_name`
 
 ## Features
 
 - **Menu & search** — Menu, hours, search, dietary/allergen filters  
-- **Cart & checkout** — Add/remove/update items; orders stored in PostgreSQL  
-- **RAG** — ChromaDB + embeddings for grounded answers  
-- **Rate limiting** — SlowAPI per route (e.g. stricter on `/chat`, checkout)  
-- **API key auth** — All business routes require `X-API-Key`  
-- **Session logging** — Chat logs session id, restaurant id, client IP, duration, tools used, response length  
+- **Cart & checkout** — Orders and carts in **PostgreSQL**  
+- **RAG** — ChromaDB + embeddings  
+- **Rate limiting** — SlowAPI per route  
+- **API key auth** — Protected routes  
+- **Session logging** — Chat duration, tools, client IP, etc.
 
 ## API
 
-- **`GET /health`** — DB connectivity (no API key)  
-- **`POST /chat`** — Body: `session_id`, `message`, optional `restaurant_id`  
+- **`GET /health`** — PostgreSQL connectivity (no API key)  
+- **`POST /chat`** — `session_id`, `message`, optional `restaurant_id`  
 - **`PATCH /order/status`** — Staff order updates  
 
 ## Security
 
 - **Secrets:** `.env` gitignored; rotate leaked keys.  
 - **Data:** `data/` gitignored; use `sample_data/` as template.  
-- **Rate limiting:** SlowAPI (global default + per-route limits).  
-- **Validation:** Message length, `session_id`, `restaurant_id`, cart quantities.  
+- **Rate limiting** and **input validation** on chat and cart routes.  

@@ -1,7 +1,8 @@
-# Cart and order operations backed by PostgreSQL
+# Cart and order operations (PostgreSQL)
 
 from typing import List, Optional
 
+import psycopg2
 from psycopg2.extras import RealDictCursor
 
 from database import get_connection, _next_order_number
@@ -118,38 +119,45 @@ def place_order(session_id: str, restaurant_id: str = "restaurant_1") -> dict:
     if not cart:
         return {"error": "Cart is empty"}
     total = get_cart_total(session_id, restaurant_id)
-    with get_connection() as conn:
-        order_number = _next_order_number(conn, restaurant_id)
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                """
-                INSERT INTO orders (order_number, session_id, restaurant_id, total, status)
-                VALUES (%s, %s, %s, %s, 'pending')
-                RETURNING id, order_number, total, status, created_at
-                """,
-                (order_number, session_id, restaurant_id, total),
-            )
-            order = _row(cur.fetchone())
-            order_id = order["id"]
-            for item in cart:
-                cur.execute(
-                    """
-                    INSERT INTO order_items (order_id, item_name, price, quantity)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    (order_id, item["name"], item["price"], item["quantity"]),
-                )
-            cur.execute(
-                "DELETE FROM cart_items WHERE session_id = %s AND restaurant_id = %s",
-                (session_id, restaurant_id),
-            )
-    return {
-        "order_id": order_id,
-        "order_number": order_number,
-        "total": float(total),
-        "status": order["status"],
-        "checkout_url": "https://fake-payment-link.com",  # Replace with Stripe etc.
-    }
+    last_exc = None
+    for _ in range(10):
+        order_number = None
+        try:
+            with get_connection() as conn:
+                order_number = _next_order_number(conn, restaurant_id)
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO orders (order_number, session_id, restaurant_id, total, status)
+                        VALUES (%s, %s, %s, %s, 'pending')
+                        RETURNING id, order_number, total, status, created_at
+                        """,
+                        (order_number, session_id, restaurant_id, total),
+                    )
+                    order = _row(cur.fetchone())
+                    order_id = order["id"]
+                    for item in cart:
+                        cur.execute(
+                            """
+                            INSERT INTO order_items (order_id, item_name, price, quantity)
+                            VALUES (%s, %s, %s, %s)
+                            """,
+                            (order_id, item["name"], item["price"], item["quantity"]),
+                        )
+                    cur.execute(
+                        "DELETE FROM cart_items WHERE session_id = %s AND restaurant_id = %s",
+                        (session_id, restaurant_id),
+                    )
+            return {
+                "order_id": order_id,
+                "order_number": order_number,
+                "total": float(total),
+                "status": order["status"],
+            }
+        except psycopg2.errors.UniqueViolation as e:
+            last_exc = e
+            continue
+    raise last_exc
 
 
 def get_order_status(order_number_or_id: str, restaurant_id: str = "restaurant_1") -> Optional[dict]:

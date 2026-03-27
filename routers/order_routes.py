@@ -21,7 +21,18 @@ from services.order_services import (
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
 SESSION_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
+RESTAURANT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 ITEM_NAME_MAX_LEN = 200
+
+
+def _validate_restaurant_id(restaurant_id: str) -> str:
+    rid = (restaurant_id or "").strip() or "restaurant_1"
+    if not RESTAURANT_ID_PATTERN.match(rid):
+        raise HTTPException(
+            status_code=400,
+            detail="restaurant_id: 1-64 chars, alphanumeric, underscore, hyphen only",
+        )
+    return rid
 
 
 def _validate_session_id(session_id: str) -> None:
@@ -48,28 +59,40 @@ async def add_item(
     request: Request,
     session_id: str = Query(..., min_length=1, max_length=128),
     name: str = Query(..., min_length=1, max_length=ITEM_NAME_MAX_LEN),
+    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
 ):
     _validate_session_id(session_id)
+    rid = _validate_restaurant_id(restaurant_id)
     name = _validate_item_name(name)
-    item = get_menu_item("restaurant_1", name)
+    item = get_menu_item(rid, name)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
-    add_to_cart(session_id, item)
+    add_to_cart(session_id, item, restaurant_id=rid)
     return {"message": f"{name} added to cart"}
 
 
 @router.get("/cart")
 @limiter.limit("120/minute")
-async def cart(request: Request, session_id: str = Query(..., min_length=1, max_length=128)):
+async def cart(
+    request: Request,
+    session_id: str = Query(..., min_length=1, max_length=128),
+    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
+):
     _validate_session_id(session_id)
-    return get_cart(session_id)
+    rid = _validate_restaurant_id(restaurant_id)
+    return get_cart(session_id, rid)
 
 
 @router.post("/cart/clear")
 @limiter.limit("60/minute")
-async def clear(request: Request, session_id: str = Query(..., min_length=1, max_length=128)):
+async def clear(
+    request: Request,
+    session_id: str = Query(..., min_length=1, max_length=128),
+    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
+):
     _validate_session_id(session_id)
-    return clear_cart(session_id)
+    rid = _validate_restaurant_id(restaurant_id)
+    return clear_cart(session_id, rid)
 
 
 @router.get("/cart/summary")
@@ -77,9 +100,11 @@ async def clear(request: Request, session_id: str = Query(..., min_length=1, max
 async def cart_summary(
     request: Request,
     session_id: str = Query(..., min_length=1, max_length=128),
+    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
 ):
     _validate_session_id(session_id)
-    cart = get_cart(session_id)
+    rid = _validate_restaurant_id(restaurant_id)
+    cart = get_cart(session_id, rid)
     total = sum(item["price"] * item["quantity"] for item in cart)
     return {"items": cart, "total": total}
 
@@ -90,10 +115,12 @@ async def remove_cart(
     request: Request,
     session_id: str = Query(..., min_length=1, max_length=128),
     name: str = Query(..., min_length=1, max_length=ITEM_NAME_MAX_LEN),
+    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
 ):
     _validate_session_id(session_id)
+    rid = _validate_restaurant_id(restaurant_id)
     name = _validate_item_name(name)
-    return remove_from_cart(session_id, name)
+    return remove_from_cart(session_id, name, rid)
 
 
 @router.post("/cart/update")
@@ -103,10 +130,12 @@ async def update_item(
     session_id: str = Query(..., min_length=1, max_length=128),
     name: str = Query(..., min_length=1, max_length=ITEM_NAME_MAX_LEN),
     quantity: int = Query(..., ge=1, le=99),
+    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
 ):
     _validate_session_id(session_id)
+    rid = _validate_restaurant_id(restaurant_id)
     name = _validate_item_name(name)
-    return update_cart_item(session_id, name, quantity)
+    return update_cart_item(session_id, name, quantity, rid)
 
 
 @router.post("/order/checkout")
@@ -114,9 +143,11 @@ async def update_item(
 async def checkout(
     request: Request,
     session_id: str = Query(..., min_length=1, max_length=128),
+    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
 ):
     _validate_session_id(session_id)
-    result = place_order(session_id)
+    rid = _validate_restaurant_id(restaurant_id)
+    result = place_order(session_id, rid)
     if result.get("error"):
         raise HTTPException(status_code=400, detail=result["error"])
     return {

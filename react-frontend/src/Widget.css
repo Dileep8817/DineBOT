@@ -458,13 +458,17 @@
 
 .dinebot-checkout {
   display: block;
+  width: 100%;
   padding: 12px;
   background: var(--dinebot-primary, #2d7d46);
   color: #fff;
   text-align: center;
   text-decoration: none;
+  border: none;
   border-radius: 8px;
+  font: inherit;
   font-weight: 600;
+  cursor: pointer;
   transition: background 0.2s;
 }
 

@@ -2,15 +2,19 @@
 
 import os
 from contextlib import contextmanager
+from pathlib import Path
+
 import psycopg2
 from dotenv import load_dotenv
 
-load_dotenv()
+PROJECT_ROOT = Path(__file__).resolve().parent
+load_dotenv(PROJECT_ROOT / ".env")
 
 DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
 if not DATABASE_URL:
     raise RuntimeError(
-        "DATABASE_URL is required. Example: postgresql://user:password@localhost:5432/restaurant_ai"
+        "DATABASE_URL is required (PostgreSQL only). "
+        "Example: postgresql://user:password@localhost:5432/restaurant_ai"
     )
 
 
@@ -28,7 +32,7 @@ def get_connection():
 
 
 def init_db():
-    """Create tables if they don't exist. Run once on startup or via script."""
+    """Create tables if they don't exist."""
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -73,12 +77,19 @@ def init_db():
 
 
 def _next_order_number(conn, restaurant_id: str):
-    """Generate daily order number. For high concurrency, consider a SEQUENCE or SELECT FOR UPDATE."""
+    """
+    Next display id for this restaurant. Uses max numeric suffix across ALL orders
+    for this restaurant (not only today) so order_number stays unique globally.
+    """
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT COUNT(*) + 1 FROM orders
-            WHERE restaurant_id = %s AND created_at >= CURRENT_DATE
+            SELECT COALESCE(
+                MAX(CAST(SUBSTRING(order_number FROM '[0-9]+$') AS INTEGER)),
+                0
+            ) + 1
+            FROM orders
+            WHERE restaurant_id = %s
             """,
             (restaurant_id,),
         )

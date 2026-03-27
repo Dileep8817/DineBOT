@@ -1,8 +1,19 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import { apiUrl } from "./apiConfig";
+import { StripeCheckout } from "./StripeCheckout";
 import "./App.css";
+
 const SESSION_ID = "session_" + Math.random().toString(36).slice(2, 9);
+
+function getRestaurantId() {
+  const params = new URLSearchParams(window.location.search);
+  return (
+    params.get("restaurant_id") ||
+    process.env.REACT_APP_DEFAULT_RESTAURANT_ID ||
+    "restaurant_1"
+  );
+}
 
 function formatBotResponse(data) {
   if (typeof data === "string") return data;
@@ -52,13 +63,15 @@ function App() {
   const [messages, setMessages] = useState([
     {
       role: "bot",
-      text: "Hi! I can help you with our menu, hours, address, specials, dietary options, or take your order. Just ask!",
+      text: "Hi! I'm your AI assistant for ordering! I can help you browse the menu, customize items, and place orders. What would you like today?",
       key: "welcome",
     },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeSection, setActiveSection] = useState("chat");
+  const [payOrderID, setPayOrderID] = useState(null);
+  const [payOrderNumber, setPayOrderNumber] = useState(null);
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
 
@@ -70,16 +83,14 @@ function App() {
     scrollToBottom();
   }, [messages]);
 
-  useEffect(() => {
-    loadMenu();
-    loadCart();
-  }, []);
-
-  const loadMenu = async () => {
+  const loadMenu = useCallback(async () => {
+    const restaurantId = getRestaurantId();
     setMenuLoading(true);
     setMenuError(false);
     try {
-      const res = await axios.get(apiUrl("/menu"));
+      const res = await axios.get(apiUrl("/menu"), {
+        params: { restaurant_id: restaurantId },
+      });
       setMenu(res.data.items || []);
     } catch (e) {
       console.error(e);
@@ -88,12 +99,13 @@ function App() {
     } finally {
       setMenuLoading(false);
     }
-  };
+  }, []);
 
-  const loadCart = async () => {
+  const loadCart = useCallback(async () => {
+    const restaurantId = getRestaurantId();
     try {
       const res = await axios.get(apiUrl("/cart"), {
-        params: { session_id: SESSION_ID },
+        params: { session_id: SESSION_ID, restaurant_id: restaurantId },
       });
       const data = res.data || [];
       setCart(Array.isArray(data) ? data : []);
@@ -103,7 +115,28 @@ function App() {
       setCart([]);
       setTotal(0);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadMenu();
+    loadCart();
+  }, [loadMenu, loadCart]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("paid") !== "1") return;
+    setPayOrderID(null);
+    setPayOrderNumber(null);
+    loadCart();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("paid");
+    const q = url.searchParams.toString();
+    window.history.replaceState(
+      {},
+      "",
+      url.pathname + (q ? `?${q}` : "") + url.hash
+    );
+  }, [loadCart]);
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -115,6 +148,7 @@ function App() {
       const res = await axios.post(apiUrl("/chat"), {
         session_id: SESSION_ID,
         message: text,
+        restaurant_id: getRestaurantId(),
       });
       const data = res.data;
       let botText = data.response;
@@ -136,6 +170,10 @@ function App() {
           )
         );
       }
+      if (data.pending_payment?.order_id != null) {
+        setPayOrderID(data.pending_payment.order_id);
+        setPayOrderNumber(data.pending_payment.order_number || null);
+      }
     } catch (e) {
       const hint = e.response
         ? ` (${e.response.status})`
@@ -153,10 +191,15 @@ function App() {
     }
   };
 
+  const cartParams = () => ({
+    session_id: SESSION_ID,
+    restaurant_id: getRestaurantId(),
+  });
+
   const addToCart = async (name) => {
     try {
       await axios.post(apiUrl("/cart/add"), null, {
-        params: { session_id: SESSION_ID, name },
+        params: { ...cartParams(), name },
       });
       loadCart();
     } catch (e) {
@@ -171,7 +214,7 @@ function App() {
     }
     try {
       await axios.post(apiUrl("/cart/update"), null, {
-        params: { session_id: SESSION_ID, name, quantity },
+        params: { ...cartParams(), name, quantity },
       });
       loadCart();
     } catch (e) {
@@ -182,7 +225,7 @@ function App() {
   const removeItem = async (name) => {
     try {
       await axios.post(apiUrl("/cart/remove"), null, {
-        params: { session_id: SESSION_ID, name },
+        params: { ...cartParams(), name },
       });
       loadCart();
     } catch (e) {
@@ -190,10 +233,29 @@ function App() {
     }
   };
 
+  const checkoutFromCart = async () => {
+    try {
+      const res = await axios.post(apiUrl("/order/checkout"), null, {
+        params: cartParams(),
+      });
+      if (res.data?.order_id != null) {
+        setPayOrderID(res.data.order_id);
+        setPayOrderNumber(res.data.order_number || null);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const closePayModal = () => {
+    setPayOrderID(null);
+    setPayOrderNumber(null);
+  };
+
   return (
     <div className="app">
       <header className="header">
-        <h1 className="brand">Dileep's Pizzeria</h1>
+        <h1 className="brand">The Restaurant</h1>
         <p className="tagline">Chat, browse, and order — all in one place</p>
         <nav className="nav">
           <button
@@ -238,7 +300,9 @@ function App() {
             {loading && (
               <div className="message message--bot animate-message">
                 <div className="message-bubble typing">
-                  <span></span><span></span><span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
                 </div>
               </div>
             )}
@@ -269,12 +333,11 @@ function App() {
           className={`panel menu-panel ${activeSection === "menu" ? "active" : ""}`}
         >
           <h2 className="panel-title">Menu</h2>
-          {menuLoading && (
-            <p className="panel-message">Loading menu…</p>
-          )}
+          {menuLoading && <p className="panel-message">Loading menu…</p>}
           {!menuLoading && menuError && (
             <p className="panel-message panel-error">
-              Couldn’t load menu. Is the backend running? Try: <code>uvicorn main:app --reload</code> in the project folder.
+              Couldn’t load menu. Is the backend running? Try:{" "}
+              <code>uvicorn main:app --reload</code> in the project folder.
             </p>
           )}
           {!menuLoading && !menuError && menu.length === 0 && (
@@ -293,7 +356,9 @@ function App() {
                   {item.dietary?.length > 0 && (
                     <div className="menu-card-tags">
                       {item.dietary.map((d) => (
-                        <span key={d} className="tag">{d}</span>
+                        <span key={d} className="tag">
+                          {d}
+                        </span>
                       ))}
                     </div>
                   )}
@@ -327,7 +392,9 @@ function App() {
                 <div key={item.name} className="cart-item animate-cart-item">
                   <div className="cart-item-info">
                     <strong>{item.name}</strong>
-                    <span>${item.price} × {item.quantity}</span>
+                    <span>
+                      ${item.price} × {item.quantity}
+                    </span>
                   </div>
                   <div className="cart-item-actions">
                     <button
@@ -363,18 +430,41 @@ function App() {
           {cart.length > 0 && (
             <div className="cart-footer">
               <p className="cart-total">Total: ${total.toFixed(2)}</p>
-              <a
-                href="https://fake-payment-link.com"
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
                 className="btn btn-checkout"
+                onClick={checkoutFromCart}
               >
                 Checkout
-              </a>
+              </button>
             </div>
           )}
         </section>
       </main>
+      {payOrderID != null && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <StripeCheckout
+            orderId={payOrderID}
+            orderNumber={payOrderNumber}
+            sessionId={SESSION_ID}
+            onClose={closePayModal}
+            onPaid={() => {
+              closePayModal();
+              loadCart();
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

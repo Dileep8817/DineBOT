@@ -45,7 +45,8 @@ def _system_message(restaurant_id: str, session_id: str, rag_context: list = Non
 - session_id for this conversation: {session_id}
 Use these exact IDs when calling any tool that needs them (they will be injected automatically; you only need to provide other parameters like item names, query, order number, etc.).
 Help customers with: menu, hours, address, phone, delivery/pickup, specials, dietary options, allergens, adding items to cart, viewing cart, checkout, and order status. Be concise and friendly. 
-If a tool returns an error (e.g. item not found), tell the customer and suggest alternatives."""
+If a tool returns an error (e.g. item not found), tell the customer and suggest alternatives.After checkout_cart succeeds, never link to external payment sites. Tell the user to complete payment 
+using the in-app Pay button when it appears."""
     if rag_context:
         numbered = "\n".join(f"{i + 1}. {chunk}" for i, chunk in enumerate(rag_context))
         base += "\n\nAnswer using only the information below. Do not invent details.\n\nRestaurant Information:\n" + numbered + "\n\nUse the above when answering the user's question."
@@ -106,7 +107,10 @@ async def chat_endpoint(request: Request, body: ChatRequest):
     rid = body.restaurant_id
     message = (body.message or "").strip()
     if not message:
-        return {"response": "Send a message to get help.", "cart": _get_cart_for_response(session_id, rid)}
+        return {"response": "Send a message to get help.", 
+                "cart": _get_cart_for_response(session_id, rid),
+                "pending_payment": None,
+                }
 
     client_host = request.client.host if request.client else "unknown"
     logger.info(
@@ -129,6 +133,7 @@ async def chat_endpoint(request: Request, body: ChatRequest):
         return {
             "response": "Chat is not configured yet. Please set OPENAI_API_KEY in the server environment.",
             "cart": _get_cart_for_response(session_id, rid),
+            "pending_payment": None,
         }
 
     # RAG: retrieve relevant chunks for this restaurant and query
@@ -148,6 +153,7 @@ async def chat_endpoint(request: Request, body: ChatRequest):
     max_rounds = 5
     final_content = ""
     current_messages = list(messages)
+    pending_payment = None
 
     try:
         for _ in range(max_rounds):
@@ -173,6 +179,17 @@ async def chat_endpoint(request: Request, body: ChatRequest):
                     except json.JSONDecodeError:
                         tool_args = {}
                     result = _run_tool(tc["name"], tool_args, session_id, rid)
+                    if (
+                        tc["name"] == "checkout_cart"
+                        and isinstance(result, dict)
+                        and not result.get("error")
+                        and result.get("order_id") is not None
+                    ):
+                        pending_payment = {
+                            "order_id": result["order_id"],
+                            "order_number": result.get("order_number"),
+                            "total": result.get("total"),
+                        }
                     result_str = _serialize_tool_result(result)
                     current_messages.append({
                         "role": "tool",
@@ -196,6 +213,7 @@ async def chat_endpoint(request: Request, body: ChatRequest):
         return {
             "response": "Something went wrong. Please try again.",
             "cart": _get_cart_for_response(session_id, rid),
+            "pending_payment": None,
         }
 
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
@@ -223,7 +241,10 @@ async def chat_endpoint(request: Request, body: ChatRequest):
 
     # Return cart when relevant (after any cart-affecting turn)
     cart = _get_cart_for_response(session_id, rid)
-    return {"response": final_content, "cart": cart}
+    return {"response": final_content,
+             "cart": cart,
+             "pending_payment": pending_payment,
+             }
 
 
 def _get_cart_for_response(session_id: str, restaurant_id: str):

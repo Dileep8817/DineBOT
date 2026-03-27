@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import { apiUrl } from "./apiConfig";
+import { StripeCheckout } from "./StripeCheckout";
 import "./Widget.css";
 
 const LOGO_URL = process.env.PUBLIC_URL ? process.env.PUBLIC_URL + "/dinebot-logo.png" : "/dinebot-logo.png";
@@ -21,7 +22,7 @@ function getRestaurantId() {
 
 function getThemeFromUrl() {
   const params = new URLSearchParams(window.location.search);
-  const primary = params.get("primary_color") || "#2d7d46";
+  const primary = params.get("primary_color") || "#0c4b93";
   const name = params.get("restaurant_name") || "DineBot";
   return { primaryColor: primary, restaurantName: name };
 }
@@ -71,26 +72,30 @@ function Widget() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [lastOrderNumber, setLastOrderNumber] = useState(null);
+  const [payOrderID, setPayOrderID] = useState(null);
+  const [payOrderNumber, setPayOrderNumber] = useState(null);
   const messagesEndRef = useRef(null);
 
   const sessionId = getSessionId();
   const restaurantId = getRestaurantId();
   const theme = getThemeFromUrl();
 
+  const cartParams = useCallback(
+    () => ({ session_id: sessionId, restaurant_id: restaurantId }),
+    [sessionId, restaurantId]
+  );
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  useEffect(() => {
-    loadMenu();
-    loadCart();
-  }, [restaurantId]);
-
-  const loadMenu = async () => {
+  const loadMenu = useCallback(async () => {
     setMenuLoading(true);
     setMenuError(false);
     try {
-      const res = await axios.get(apiUrl("/menu"), { params: { restaurant_id: restaurantId } });
+      const res = await axios.get(apiUrl("/menu"), {
+        params: { restaurant_id: restaurantId },
+      });
       setMenu(res.data.items || []);
     } catch (e) {
       setMenuError(true);
@@ -98,11 +103,11 @@ function Widget() {
     } finally {
       setMenuLoading(false);
     }
-  };
+  }, [restaurantId]);
 
-  const loadCart = async () => {
+  const loadCart = useCallback(async () => {
     try {
-      const res = await axios.get(apiUrl("/cart"), { params: { session_id: sessionId } });
+      const res = await axios.get(apiUrl("/cart"), { params: cartParams() });
       const data = res.data || [];
       const list = Array.isArray(data) ? data : [];
       setCart(list);
@@ -111,7 +116,28 @@ function Widget() {
       setCart([]);
       setTotal(0);
     }
-  };
+  }, [cartParams]);
+
+  useEffect(() => {
+    loadMenu();
+    loadCart();
+  }, [restaurantId, loadMenu, loadCart]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("paid") !== "1") return;
+    setPayOrderID(null);
+    setPayOrderNumber(null);
+    loadCart();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("paid");
+    const q = url.searchParams.toString();
+    window.history.replaceState(
+      {},
+      "",
+      url.pathname + (q ? `?${q}` : "") + url.hash
+    );
+  }, [loadCart]);
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -135,6 +161,10 @@ function Widget() {
         setCart(list);
         setTotal(list.reduce((s, i) => s + i.price * i.quantity, 0));
       }
+      if (data.pending_payment?.order_id != null) {
+        setPayOrderID(data.pending_payment.order_id);
+        setPayOrderNumber(data.pending_payment.order_number || null);
+      }
       const orderMatch = typeof botText === "string" && botText.match(/Order\s+([A-Z0-9_-]+)\s+placed/i);
       if (orderMatch) setLastOrderNumber(orderMatch[1]);
     } catch (e) {
@@ -149,7 +179,9 @@ function Widget() {
 
   const addToCart = async (name) => {
     try {
-      await axios.post(apiUrl("/cart/add"), null, { params: { session_id: sessionId, name } });
+      await axios.post(apiUrl("/cart/add"), null, {
+        params: { ...cartParams(), name },
+      });
       loadCart();
     } catch (e) {
       console.error(e);
@@ -159,13 +191,17 @@ function Widget() {
   const updateItem = async (name, quantity) => {
     if (quantity <= 0) {
       try {
-        await axios.post(apiUrl("/cart/remove"), null, { params: { session_id: sessionId, name } });
+        await axios.post(apiUrl("/cart/remove"), null, {
+          params: { ...cartParams(), name },
+        });
       } catch (_) {}
       loadCart();
       return;
     }
     try {
-      await axios.post(apiUrl("/cart/update"), null, { params: { session_id: sessionId, name, quantity } });
+      await axios.post(apiUrl("/cart/update"), null, {
+        params: { ...cartParams(), name, quantity },
+      });
       loadCart();
     } catch (e) {
       console.error(e);
@@ -174,8 +210,29 @@ function Widget() {
 
   const removeItem = async (name) => {
     try {
-      await axios.post(apiUrl("/cart/remove"), null, { params: { session_id: sessionId, name } });
+      await axios.post(apiUrl("/cart/remove"), null, {
+        params: { ...cartParams(), name },
+      });
       loadCart();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const closePayModal = () => {
+    setPayOrderID(null);
+    setPayOrderNumber(null);
+  };
+
+  const checkoutFromCart = async () => {
+    try {
+      const res = await axios.post(apiUrl("/order/checkout"), null, {
+        params: cartParams(),
+      });
+      if (res.data?.order_id != null) {
+        setPayOrderID(res.data.order_id);
+        setPayOrderNumber(res.data.order_number || null);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -324,14 +381,38 @@ function Widget() {
                       ))}
                     </ul>
                     <p className="dinebot-total">Total: ${total.toFixed(2)}</p>
-                    <a href="https://fake-payment-link.com" target="_blank" rel="noopener noreferrer" className="dinebot-checkout">
+                    <button type="button" className="dinebot-checkout" onClick={checkoutFromCart}>
                       Checkout
-                    </a>
+                    </button>
                   </>
                 )}
               </div>
             )}
           </div>
+        </div>
+      )}
+      {payOrderID != null && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 99999,
+          }}
+        >
+          <StripeCheckout
+            orderId={payOrderID}
+            orderNumber={payOrderNumber}
+            sessionId={sessionId}
+            onClose={closePayModal}
+            onPaid={() => {
+              closePayModal();
+              loadCart();
+            }}
+          />
         </div>
       )}
     </div>

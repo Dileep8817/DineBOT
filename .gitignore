@@ -2,6 +2,10 @@
 .env
 .env.*
 !.env.example
+
+# Frontend: only example files are safe to commit (no real keys)
+react-frontend/.env
+react-frontend/.env.*
 !react-frontend/.env.development.example
 
 # Python
@@ -19,14 +23,14 @@ data/
 # Chroma vector DB (can contain embedded content from your data)
 chroma_data/
 
-# Local DB file if present (Postgres is canonical; ignore stray SQLite from old runs)
-dinebot.db
-
-# Frontend env / build
-react-frontend/.env
-react-frontend/.env.local
+# Frontend build / deps
 react-frontend/build/
 react-frontend/node_modules/
+
+# Logs & debug
+*.log
+npm-debug.log*
+.cursor/debug*.log
 
 # OS / editor
 .DS_Store

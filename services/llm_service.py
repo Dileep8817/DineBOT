@@ -5,14 +5,16 @@ import logging
 import os
 import time
 
-from dotenv import load_dotenv
-load_dotenv()
+from pathlib import Path
 
+from dotenv import load_dotenv
 from openai import OpenAI
+
+# Ensure .env is loaded if this module is imported before config (tests, scripts)
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 logger = logging.getLogger(__name__)
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 OPENAI_MAX_TOKENS = int(os.getenv("OPENAI_MAX_TOKENS", "500"))
 
@@ -121,7 +123,9 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "checkout_cart",
-            "description": "Place the order from the current cart and get checkout link.",
+            "description": "Place the order from the cart; returns order id, order number, "
+                            "and total. Payment is completed inside the restaurant app (in-app pay). "
+                            "Do not provide external payment URLs.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
@@ -191,9 +195,10 @@ TOOLS = [
 
 def get_client():
     """Return OpenAI client. Raises ValueError if API key is missing."""
-    if not OPENAI_API_KEY or not OPENAI_API_KEY.strip():
+    key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    if not key:
         raise ValueError("OPENAI_API_KEY is not set in environment")
-    return OpenAI(api_key=OPENAI_API_KEY)
+    return OpenAI(api_key=key)
 
 
 def _serialize_tool_result(value):
@@ -228,8 +233,6 @@ def chat_completion(messages, tools=None):
         payload["tools"] = tools
         payload["tool_choice"] = "auto"
 
-    # to print in terminal speed of model
-    response = client.chat.completions.create(**payload)
     start = time.perf_counter()
     response = client.chat.completions.create(**payload)
     elapsed = time.perf_counter() - start

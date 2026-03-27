@@ -1,22 +1,18 @@
 # main file for creating/running the server
 
 import logging
-import os
-
-from dotenv import load_dotenv
-
-load_dotenv()
 
 from fastapi import FastAPI
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+from config import limiter  # loads PROJECT_ROOT/.env before other app modules read env
 from auth import assert_api_keys_configured
-from config import limiter
 from database import init_db
 from routers.menu_routes import router as menu_router
 from routers.order_routes import router as order_router
 from routers.chat_routes import router as chat_router
+from routers.payment_routes import payment_router, webhook_router
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -51,6 +47,8 @@ app.add_event_handler("startup", on_startup)
 app.include_router(menu_router)
 app.include_router(order_router)
 app.include_router(chat_router)
+app.include_router(payment_router)
+app.include_router(webhook_router)
 
 
 @app.get("/")
