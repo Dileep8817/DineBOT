@@ -27,15 +27,18 @@ async def menu(
 
 @router.get("/hours")
 @limiter.limit("120/minute")
-async def hours(request: Request):
-    return get_hours("restaurant_1")
+async def hours(
+    request: Request,
+    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
+):
+    return get_hours(restaurant_id)
 
 
 @router.get("/search-menu")
 @limiter.limit("120/minute")
 async def search_menu_endpoint(
     request: Request,
-    restaurant_id: str = Query(...),
+    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
     q: str = Query(...),
 ):
     return search_menu(restaurant_id, q)
@@ -45,7 +48,7 @@ async def search_menu_endpoint(
 @limiter.limit("120/minute")
 async def menu_item(
     request: Request,
-    restaurant_id: str = Query(...),
+    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
     name: str = Query(...),
 ):
     item = get_menu_item(restaurant_id, name)
@@ -58,7 +61,7 @@ async def menu_item(
 @limiter.limit("120/minute")
 async def restaurant_info(
     request: Request,
-    restaurant_id: str = Query("restaurant_1"),
+    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
 ):
     return get_restaurant_info(restaurant_id)
 
@@ -67,6 +70,6 @@ async def restaurant_info(
 @limiter.limit("120/minute")
 async def specials(
     request: Request,
-    restaurant_id: str = Query("restaurant_1"),
+    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
 ):
     return get_specials(restaurant_id)

@@ -3,15 +3,21 @@
 const API_BASE = "http://127.0.0.1:8000";
 const API_KEY = ""; // paste for local testing only; prefer React dev proxy
 
+const urlParams = new URLSearchParams(window.location.search);
+const RESTAURANT_ID = urlParams.get("restaurant_id") || "restaurant_1";
+
 const apiHeaders = () =>
   API_KEY ? { "X-API-Key": API_KEY } : {};
 
 let sessionId = "session_demo_1";
 
 async function loadMenu() {
-  const res = await fetch(`${API_BASE}/menu?restaurant_id=restaurant_1`, {
-    headers: apiHeaders(),
-  });
+  const res = await fetch(
+    `${API_BASE}/menu?restaurant_id=${encodeURIComponent(RESTAURANT_ID)}`,
+    {
+      headers: apiHeaders(),
+    }
+  );
   const menu = await res.json();
 
   const menuDiv = document.getElementById("menu");
@@ -31,16 +37,19 @@ async function loadMenu() {
 
 async function addToCart(itemName) {
   await fetch(
-    `${API_BASE}/cart/add?session_id=${sessionId}&name=${encodeURIComponent(itemName)}`,
+    `${API_BASE}/cart/add?session_id=${encodeURIComponent(sessionId)}&restaurant_id=${encodeURIComponent(RESTAURANT_ID)}&name=${encodeURIComponent(itemName)}`,
     { method: "POST", headers: apiHeaders() }
   );
   loadCart();
 }
 
 async function loadCart() {
-  const res = await fetch(`${API_BASE}/cart?session_id=${sessionId}`, {
-    headers: apiHeaders(),
-  });
+  const res = await fetch(
+    `${API_BASE}/cart?session_id=${encodeURIComponent(sessionId)}&restaurant_id=${encodeURIComponent(RESTAURANT_ID)}`,
+    {
+      headers: apiHeaders(),
+    }
+  );
   const cart = await res.json();
 
   const cartDiv = document.getElementById("cart");
@@ -69,7 +78,7 @@ async function updateItem(name, quantity) {
   }
 
   await fetch(
-    `${API_BASE}/cart/update?session_id=${sessionId}&name=${encodeURIComponent(name)}&quantity=${quantity}`,
+    `${API_BASE}/cart/update?session_id=${encodeURIComponent(sessionId)}&restaurant_id=${encodeURIComponent(RESTAURANT_ID)}&name=${encodeURIComponent(name)}&quantity=${quantity}`,
     { method: "POST", headers: apiHeaders() }
   );
   loadCart();
@@ -77,7 +86,7 @@ async function updateItem(name, quantity) {
 
 async function removeItem(name) {
   await fetch(
-    `${API_BASE}/cart/remove?session_id=${sessionId}&name=${encodeURIComponent(name)}`,
+    `${API_BASE}/cart/remove?session_id=${encodeURIComponent(sessionId)}&restaurant_id=${encodeURIComponent(RESTAURANT_ID)}&name=${encodeURIComponent(name)}`,
     { method: "POST", headers: apiHeaders() }
   );
   loadCart();

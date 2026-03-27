@@ -77,6 +77,7 @@ Optional: `react-frontend/public/dinebot-logo.png`
 ## API
 
 - **`GET /health`** — PostgreSQL connectivity (no API key)  
+- **`GET /menu`**, **`GET /hours`**, **`GET /specials`**, **`GET /restaurant-info`**, **`GET /search-menu`**, **`GET /menu-item`**, **`/cart/*`**, **`POST /order/checkout`** — optional query **`restaurant_id`** (default `restaurant_1`); must match a folder under **`data/<restaurant_id>/`**.  
 - **`POST /chat`** — `session_id`, `message`, optional `restaurant_id`  
 - **`PATCH /order/status`** — Staff order updates  
 
