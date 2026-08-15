@@ -1,0 +1,151 @@
+{
+  "restaurant_id": "restaurant_1",
+  "currency": "USD",
+  "categories": ["Starters", "Salads", "Mains", "Sides", "Desserts", "Beverages"],
+  "items": [
+    {
+      "id": "app-001",
+      "name": "Placeholder Potato Skins",
+      "category": "Starters",
+      "price": 8.5,
+      "description": "Sample data only. Baked potato halves with cheddar and chives.",
+      "dietary": ["vegetarian"],
+      "allergens": ["dairy"]
+    },
+    {
+      "id": "app-002",
+      "name": "Example Edamame",
+      "category": "Starters",
+      "price": 6.0,
+      "description": "Sample data only. Steamed soybeans with sea salt.",
+      "dietary": ["vegan", "gluten-free"],
+      "allergens": ["soy"]
+    },
+    {
+      "id": "sal-001",
+      "name": "Sample Garden Salad",
+      "category": "Salads",
+      "price": 9.0,
+      "description": "Sample data only. Mixed greens, cucumber, tomato, lemon dressing.",
+      "dietary": ["vegan", "gluten-free"],
+      "allergens": []
+    },
+    {
+      "id": "sal-002",
+      "name": "Test Kitchen Caesar",
+      "category": "Salads",
+      "price": 11.0,
+      "description": "Sample data only. Romaine, croutons, parmesan, creamy dressing.",
+      "dietary": ["vegetarian"],
+      "allergens": ["gluten", "dairy", "eggs", "fish"]
+    },
+    {
+      "id": "main-001",
+      "name": "Cheese Pizza",
+      "category": "Mains",
+      "price": 13.0,
+      "description": "Sample data only. Tomato sauce and mozzarella on a thin crust.",
+      "dietary": ["vegetarian"],
+      "allergens": ["gluten", "dairy"]
+    },
+    {
+      "id": "main-002",
+      "name": "Veggie Pizza",
+      "category": "Mains",
+      "price": 15.0,
+      "description": "Sample data only. Peppers, onion, mushroom, olives, mozzarella.",
+      "dietary": ["vegetarian"],
+      "allergens": ["gluten", "dairy"]
+    },
+    {
+      "id": "main-003",
+      "name": "Demo Veggie Burger",
+      "category": "Mains",
+      "price": 14.0,
+      "description": "Sample data only. Bean patty, lettuce, tomato, sesame bun, fries.",
+      "dietary": ["vegetarian"],
+      "allergens": ["gluten", "sesame"]
+    },
+    {
+      "id": "main-004",
+      "name": "Mock Grilled Salmon",
+      "category": "Mains",
+      "price": 21.0,
+      "description": "Sample data only. Salmon fillet, herbed rice, seasonal vegetables.",
+      "dietary": ["gluten-free"],
+      "allergens": ["fish"]
+    },
+    {
+      "id": "main-005",
+      "name": "Placeholder Grain Bowl",
+      "category": "Mains",
+      "price": 15.5,
+      "description": "Sample data only. Farro, roasted vegetables, tahini-lemon dressing.",
+      "dietary": ["vegan"],
+      "allergens": ["gluten", "sesame"]
+    },
+    {
+      "id": "side-001",
+      "name": "Sample Fries",
+      "category": "Sides",
+      "price": 5.0,
+      "description": "Sample data only. Crispy fries with sea salt.",
+      "dietary": ["vegan"],
+      "allergens": []
+    },
+    {
+      "id": "side-002",
+      "name": "Example Garlic Bread",
+      "category": "Sides",
+      "price": 4.5,
+      "description": "Sample data only. Toasted bread with garlic butter.",
+      "dietary": ["vegetarian"],
+      "allergens": ["gluten", "dairy"]
+    },
+    {
+      "id": "des-001",
+      "name": "Demo Chocolate Cake",
+      "category": "Desserts",
+      "price": 8.0,
+      "description": "Sample data only. Chocolate layer cake with ganache.",
+      "dietary": ["vegetarian"],
+      "allergens": ["gluten", "dairy", "eggs"]
+    },
+    {
+      "id": "des-002",
+      "name": "Placeholder Fruit Sorbet",
+      "category": "Desserts",
+      "price": 6.5,
+      "description": "Sample data only. Two scoops; flavors vary.",
+      "dietary": ["vegan", "gluten-free", "dairy-free"],
+      "allergens": []
+    },
+    {
+      "id": "bev-001",
+      "name": "Sample Lemonade",
+      "category": "Beverages",
+      "price": 3.5,
+      "description": "Sample data only. Still or sparkling.",
+      "dietary": ["vegan", "gluten-free"],
+      "allergens": []
+    },
+    {
+      "id": "bev-002",
+      "name": "Example Iced Tea",
+      "category": "Beverages",
+      "price": 3.0,
+      "description": "Sample data only. Black or herbal.",
+      "dietary": ["vegan", "gluten-free"],
+      "allergens": []
+    },
+    {
+      "id": "bev-003",
+      "name": "Test Espresso",
+      "category": "Beverages",
+      "price": 3.25,
+      "description": "Sample data only. Double shot.",
+      "dietary": ["vegan", "gluten-free"],
+      "allergens": []
+    }
+  ]
+}
