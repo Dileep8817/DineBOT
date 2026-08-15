@@ -133,7 +133,9 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_order_status",
-            "description": "Get status of an order by order number (e.g. RESTAURANT_1-0001) or numeric id.",
+            "description": "Get the status of an order placed in this conversation, by order "
+                           "number (e.g. RESTAURANT_1-0001) or numeric id. Orders placed by "
+                           "other customers are not visible; say so rather than guessing.",
             "parameters": {
                 "type": "object",
                 "properties": {

@@ -160,28 +160,36 @@ def place_order(session_id: str, restaurant_id: str) -> dict:
     raise last_exc
 
 
-def get_order_status(order_number_or_id: str, restaurant_id: str) -> Optional[dict]:
-    """Get order by order_number (e.g. RESTAURANT_1-0001) or numeric id."""
+ORDER_COLUMNS = """
+    id, order_number, total, status,
+    COALESCE(payment_status, 'unpaid') AS payment_status,
+    created_at
+"""
+
+
+def _fetch_order(
+    order_number_or_id: str, restaurant_id: str, session_id: Optional[str]
+) -> Optional[dict]:
+    """Read one order plus its items.
+
+    When session_id is given, the order must belong to that session; that is the
+    only lookup a customer-facing caller may use. Pass None only from a path that
+    has already checked staff authorization.
+    """
+    by_id = order_number_or_id.isdigit()
+    key = int(order_number_or_id) if by_id else order_number_or_id.upper()
+    where = "id = %s" if by_id else "order_number = %s"
+    params = [key, restaurant_id]
+    if session_id is not None:
+        where += " AND session_id = %s"
+        params.append(session_id)
+
     with get_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            if order_number_or_id.isdigit():
-                cur.execute(
-                    """
-                    SELECT id, order_number, total, status, created_at
-                    FROM orders
-                    WHERE id = %s AND restaurant_id = %s
-                    """,
-                    (int(order_number_or_id), restaurant_id),
-                )
-            else:
-                cur.execute(
-                    """
-                    SELECT id, order_number, total, status, created_at
-                    FROM orders
-                    WHERE order_number = %s AND restaurant_id = %s
-                    """,
-                    (order_number_or_id.upper(), restaurant_id),
-                )
+            cur.execute(
+                f"SELECT {ORDER_COLUMNS} FROM orders WHERE {where} AND restaurant_id = %s",
+                tuple(params),
+            )
             order = _row(cur.fetchone())
             if not order:
                 return None
@@ -190,19 +198,45 @@ def get_order_status(order_number_or_id: str, restaurant_id: str) -> Optional[di
                 (order["id"],),
             )
             items = cur.fetchall()
-    out_items = []
-    for r in items:
-        d = _row(r)
-        out_items.append(
-            {"name": d["item_name"], "price": float(d["price"]), "quantity": int(d["quantity"])}
-        )
+
+    out_items = [
+        {
+            "name": d["item_name"],
+            "price": float(d["price"]),
+            "quantity": int(d["quantity"]),
+        }
+        for d in (_row(r) for r in items)
+    ]
     return {
         "order_number": order["order_number"],
         "total": float(order["total"]),
         "status": order["status"],
+        "payment_status": order["payment_status"],
         "created_at": str(order["created_at"]),
         "items": out_items,
     }
+
+
+def get_order_status(
+    order_number_or_id: str, restaurant_id: str, *, session_id: str
+) -> Optional[dict]:
+    """Customer-facing order lookup, scoped to the session that placed the order.
+
+    Order numbers are sequential per restaurant, so scoping by restaurant_id
+    alone let anyone enumerate every order in the venue. session_id is required
+    and keyword-only so a caller cannot omit it or pass it by accident.
+    """
+    if not session_id:
+        raise ValueError("session_id is required to read an order")
+    return _fetch_order(order_number_or_id, restaurant_id, session_id)
+
+
+def get_order_for_staff(order_number_or_id: str, restaurant_id: str) -> Optional[dict]:
+    """Read any order for a restaurant, ignoring which session placed it.
+
+    Callers MUST be behind staff authorization (see auth.require_staff_key).
+    """
+    return _fetch_order(order_number_or_id, restaurant_id, None)
 
 
 def update_order_status(order_number: str, new_status: str, restaurant_id: str) -> Optional[dict]:
@@ -223,4 +257,4 @@ def update_order_status(order_number: str, new_status: str, restaurant_id: str) 
             row = cur.fetchone()
     if not row:
         return None
-    return get_order_status(order_number, restaurant_id)
+    return get_order_for_staff(order_number, restaurant_id)

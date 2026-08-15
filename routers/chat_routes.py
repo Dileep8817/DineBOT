@@ -85,7 +85,9 @@ def _run_tool(name: str, arguments: dict, session_id: str, restaurant_id: str):
         if name == "checkout_cart":
             return tool_checkout_cart(session_id, restaurant_id)
         if name == "get_order_status":
-            return tool_get_order_status(args.get("order_number_or_id", ""), restaurant_id)
+            return tool_get_order_status(
+                session_id, args.get("order_number_or_id", ""), restaurant_id
+            )
         if name == "get_restaurant_info":
             return tool_get_restaurant_info(restaurant_id)
         if name == "get_specials":

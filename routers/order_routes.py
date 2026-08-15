@@ -175,8 +175,17 @@ async def order_status(
         description="Order number e.g. RESTAURANT_1-0001 or numeric id",
     ),
     restaurant_id: str = Query(..., min_length=1, max_length=64),
+    session_id: str = Query(
+        ...,
+        min_length=1,
+        max_length=128,
+        description="Session that placed the order; orders from other sessions are not visible",
+    ),
 ):
-    result = get_order_status(order_number, restaurant_id)
+    """Customer view of one of their own orders. Staff use GET /staff/orders."""
+    _validate_session_id(session_id)
+    rid = _validate_restaurant_id(restaurant_id)
+    result = get_order_status(order_number, rid, session_id=session_id)
     if not result:
         raise HTTPException(status_code=404, detail="Order not found")
     return result

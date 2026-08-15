@@ -57,8 +57,12 @@ def tool_checkout_cart(session_id: str, restaurant_id: str):
         "order_id": result["order_id"]
     }
 
-def tool_get_order_status(order_number_or_id: str, restaurant_id: str):
-    return get_order_status(order_number_or_id, restaurant_id)
+def tool_get_order_status(session_id: str, order_number_or_id: str, restaurant_id: str):
+    """Look up an order the current chat session placed. Other sessions' orders are invisible."""
+    order = get_order_status(order_number_or_id, restaurant_id, session_id=session_id)
+    if not order:
+        return {"error": "No order with that number was placed in this conversation."}
+    return order
 
 
 def tool_get_restaurant_info(restaurant_id: str):
