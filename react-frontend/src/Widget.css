@@ -475,3 +475,16 @@
 .dinebot-checkout:hover {
   background: color-mix(in srgb, var(--dinebot-primary, #2d7d46) 85%, black);
 }
+
+.dinebot-no-restaurant {
+  padding: 20px 16px;
+  line-height: 1.5;
+  color: #333;
+}
+
+.dinebot-no-restaurant code {
+  font-size: 12px;
+  background: #f4f4f4;
+  padding: 2px 6px;
+  border-radius: 4px;
+}

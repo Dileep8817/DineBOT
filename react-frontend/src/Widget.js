@@ -15,9 +15,12 @@ function getSessionId() {
   return id;
 }
 
-function getRestaurantId() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get("restaurant_id") || "restaurant_1";
+function readRestaurantIdFromUrl() {
+  const raw = new URLSearchParams(window.location.search).get("restaurant_id");
+  if (raw?.trim()) return raw.trim();
+  const envId = process.env.REACT_APP_DEFAULT_RESTAURANT_ID;
+  if (envId?.trim()) return envId.trim();
+  return null;
 }
 
 function getThemeFromUrl() {
@@ -27,7 +30,12 @@ function getThemeFromUrl() {
   return { primaryColor: primary, restaurantName: name };
 }
 
-const QUICK_PROMPTS = ["What's on the menu?", "Hours?", "Add Margherita Pizza to cart", "View my cart"];
+const QUICK_PROMPTS = [
+  "What's on the menu?",
+  "Hours?",
+  "Add the first noodle bowl to my cart",
+  "View my cart",
+];
 
 function formatBotResponse(data) {
   if (typeof data === "string") return data;
@@ -58,11 +66,14 @@ function formatBotResponse(data) {
 }
 
 function Widget() {
+  const [restaurantId, setRestaurantId] = useState(() =>
+    typeof window !== "undefined" ? readRestaurantIdFromUrl() : null
+  );
   const [open, setOpen] = useState(false);
   const [justOpened, setJustOpened] = useState(false);
   const [activeTab, setActiveTab] = useState("chat");
   const [menu, setMenu] = useState([]);
-  const [menuLoading, setMenuLoading] = useState(true);
+  const [menuLoading, setMenuLoading] = useState(false);
   const [menuError, setMenuError] = useState(false);
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
@@ -77,8 +88,14 @@ function Widget() {
   const messagesEndRef = useRef(null);
 
   const sessionId = getSessionId();
-  const restaurantId = getRestaurantId();
   const theme = getThemeFromUrl();
+
+  useEffect(() => {
+    const sync = () => setRestaurantId(readRestaurantIdFromUrl());
+    sync();
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
 
   const cartParams = useCallback(
     () => ({ session_id: sessionId, restaurant_id: restaurantId }),
@@ -90,6 +107,7 @@ function Widget() {
   }, [messages]);
 
   const loadMenu = useCallback(async () => {
+    if (!restaurantId) return;
     setMenuLoading(true);
     setMenuError(false);
     try {
@@ -106,6 +124,7 @@ function Widget() {
   }, [restaurantId]);
 
   const loadCart = useCallback(async () => {
+    if (!restaurantId) return;
     try {
       const res = await axios.get(apiUrl("/cart"), { params: cartParams() });
       const data = res.data || [];
@@ -119,6 +138,13 @@ function Widget() {
   }, [cartParams]);
 
   useEffect(() => {
+    if (!restaurantId) {
+      setMenu([]);
+      setMenuLoading(false);
+      setCart([]);
+      setTotal(0);
+      return;
+    }
     loadMenu();
     loadCart();
   }, [restaurantId, loadMenu, loadCart]);
@@ -141,7 +167,7 @@ function Widget() {
 
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    if (!text || loading || !restaurantId) return;
     setInput("");
     setMessages((m) => [...m, { role: "user", text, key: Date.now() + "u" }]);
     setLoading(true);
@@ -289,6 +315,18 @@ function Widget() {
           </div>
 
           <div className="dinebot-panel-body">
+            {!restaurantId ? (
+              <div className="dinebot-no-restaurant">
+                <p>
+                  <strong>No restaurant selected.</strong>
+                </p>
+                <p>
+                  Add <code>?restaurant_id=your_slug</code> to this page&apos;s URL (e.g.{" "}
+                  <code>velvet_fork_kitchen</code>).
+                </p>
+              </div>
+            ) : (
+              <>
             {activeTab === "chat" && (
               <>
                 {lastOrderNumber && (
@@ -387,6 +425,8 @@ function Widget() {
                   </>
                 )}
               </div>
+            )}
+              </>
             )}
           </div>
         </div>
