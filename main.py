@@ -1,6 +1,7 @@
 # main file for creating/running the server
 
 import logging
+import os
 
 from fastapi import FastAPI
 from slowapi import _rate_limit_exceeded_handler
@@ -15,7 +16,11 @@ from routers.order_routes import router as order_router
 from routers.chat_routes import router as chat_router
 from routers.payment_routes import payment_router, webhook_router
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+_log_level_name = (os.getenv("LOG_LEVEL") or "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, _log_level_name, logging.INFO),
+    format="%(asctime)s %(levelname)s: %(name)s: %(message)s",
+)
 
 
 def on_startup():
