@@ -59,8 +59,18 @@ def init_db():
                     restaurant_id VARCHAR(64) NOT NULL,
                     total NUMERIC(10, 2) NOT NULL,
                     status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                    payment_status VARCHAR(32) NOT NULL DEFAULT 'unpaid',
+                    stripe_payment_intent_id VARCHAR(255),
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
+                """
+            )
+            # Migration for databases created before the payment columns existed.
+            cur.execute(
+                """
+                ALTER TABLE orders
+                    ADD COLUMN IF NOT EXISTS payment_status VARCHAR(32) NOT NULL DEFAULT 'unpaid',
+                    ADD COLUMN IF NOT EXISTS stripe_payment_intent_id VARCHAR(255);
                 """
             )
             cur.execute(
