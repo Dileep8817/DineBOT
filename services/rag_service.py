@@ -4,17 +4,23 @@ import json
 import logging
 import os
 import re
+from pathlib import Path
 
 from dotenv import load_dotenv
 load_dotenv()
 
-from config import DATA_DIR
+from config import DATA_DIR, PROJECT_ROOT
 
 logger = logging.getLogger(__name__)
 
 # Same validation as menu_services to avoid path traversal
 RESTAURANT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
-CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "chroma_data")
+_chroma_raw = Path(os.getenv("CHROMA_PERSIST_DIR", "chroma_data"))
+CHROMA_PERSIST_DIR = str(
+    _chroma_raw.resolve()
+    if _chroma_raw.is_absolute()
+    else (PROJECT_ROOT / _chroma_raw).resolve()
+)
 COLLECTION_NAME = "restaurant_chunks"
 OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
 RAG_TOP_K = int(os.getenv("RAG_TOP_K", "8"))
