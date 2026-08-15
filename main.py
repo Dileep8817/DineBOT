@@ -4,11 +4,12 @@ import logging
 import os
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from config import limiter  # loads PROJECT_ROOT/.env before other app modules read env
-from auth import assert_api_keys_configured
+from auth import assert_api_keys_configured, dev_mode
 from database import init_db
 from routers.menu_routes import router as menu_router
 from services.menu_services import RestaurantDataNotFound
@@ -52,9 +53,44 @@ def on_startup():
         logging.getLogger(__name__).warning("RAG indexing skipped or failed: %s", e)
 
 
+DEV_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
+
+
+def allowed_origins():
+    """Browser origins permitted to call the API directly, from ALLOWED_ORIGINS.
+
+    Empty means no CORS middleware is installed, which is the right answer when
+    the SPA is served from the same hostname as the API (the documented setup).
+    """
+    origins = [o.strip() for o in (os.getenv("ALLOWED_ORIGINS") or "").split(",") if o.strip()]
+    if "*" in origins:
+        if not dev_mode():
+            raise RuntimeError(
+                "ALLOWED_ORIGINS=* would let any site call this API with a browser's "
+                "credentials. List the exact origins, or set DINEBOT_DEV=1 locally."
+            )
+        return ["*"]
+    if origins:
+        return origins
+    if dev_mode():
+        return list(DEV_ORIGINS)
+    return []
+
+
 app = FastAPI(title="Restaurant AI Agent")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+_origins = allowed_origins()
+if _origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_origins,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+        allow_headers=["Content-Type", "X-API-Key", "X-Staff-Key"],
+    )
+    logging.getLogger(__name__).info("CORS enabled for: %s", ", ".join(_origins))
 
 
 @app.exception_handler(ValueError)
