@@ -3,11 +3,6 @@
 .env.*
 !.env.example
 
-# Frontend: only example files are safe to commit (no real keys)
-react-frontend/.env
-react-frontend/.env.*
-!react-frontend/.env.development.example
-
 # Python
 venv/
 .venv/
@@ -16,22 +11,26 @@ __pycache__/
 .Python
 *.egg-info/
 .eggs/
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Restaurant JSON — keep only on your machine (menus, hours, pricing)
+# Live restaurant JSON (real menus, hours, pricing). Seeded from sample_data/,
+# which IS committed — see docs/RESTAURANT_DATA.md.
 data/
-sample_data/
 
-# Chroma vector DB (can contain embedded content from your data)
+# Chroma vector DB (contains embedded content from data/)
 chroma_data/
 
-# Frontend build / deps
+# Frontend env / build
+react-frontend/.env
+react-frontend/.env.local
 react-frontend/build/
 react-frontend/node_modules/
 
-# Logs & debug
+# Logs
 *.log
 npm-debug.log*
-.cursor/debug*.log
 
 # OS / editor
 .DS_Store
