@@ -28,7 +28,7 @@ def create_cart(session_id: str):
     pass
 
 
-def add_to_cart(session_id: str, item: dict, quantity: int = 1, restaurant_id: str = "restaurant_1"):
+def add_to_cart(session_id: str, item: dict, quantity: int = 1, *, restaurant_id: str):
     with get_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
@@ -43,7 +43,7 @@ def add_to_cart(session_id: str, item: dict, quantity: int = 1, restaurant_id: s
     return get_cart(session_id, restaurant_id)
 
 
-def get_cart(session_id: str, restaurant_id: str = "restaurant_1") -> List[dict]:
+def get_cart(session_id: str, restaurant_id: str) -> List[dict]:
     with get_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
@@ -59,7 +59,7 @@ def get_cart(session_id: str, restaurant_id: str = "restaurant_1") -> List[dict]
     return [_cart_row_to_dict(r) for r in rows]
 
 
-def clear_cart(session_id: str, restaurant_id: str = "restaurant_1") -> List:
+def clear_cart(session_id: str, restaurant_id: str) -> List:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -69,7 +69,7 @@ def clear_cart(session_id: str, restaurant_id: str = "restaurant_1") -> List:
     return []
 
 
-def get_cart_total(session_id: str, restaurant_id: str = "restaurant_1") -> float:
+def get_cart_total(session_id: str, restaurant_id: str) -> float:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -84,7 +84,7 @@ def get_cart_total(session_id: str, restaurant_id: str = "restaurant_1") -> floa
     return float(row[0])
 
 
-def remove_from_cart(session_id: str, name: str, restaurant_id: str = "restaurant_1") -> List[dict]:
+def remove_from_cart(session_id: str, name: str, restaurant_id: str) -> List[dict]:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -98,7 +98,7 @@ def remove_from_cart(session_id: str, name: str, restaurant_id: str = "restauran
 
 
 def update_cart_item(
-    session_id: str, name: str, quantity: int, restaurant_id: str = "restaurant_1"
+    session_id: str, name: str, quantity: int, restaurant_id: str
 ) -> List[dict]:
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -113,7 +113,7 @@ def update_cart_item(
     return get_cart(session_id, restaurant_id)
 
 
-def place_order(session_id: str, restaurant_id: str = "restaurant_1") -> dict:
+def place_order(session_id: str, restaurant_id: str) -> dict:
     """Create order from current cart, clear cart, return order_id and total."""
     cart = get_cart(session_id, restaurant_id)
     if not cart:
@@ -160,7 +160,7 @@ def place_order(session_id: str, restaurant_id: str = "restaurant_1") -> dict:
     raise last_exc
 
 
-def get_order_status(order_number_or_id: str, restaurant_id: str = "restaurant_1") -> Optional[dict]:
+def get_order_status(order_number_or_id: str, restaurant_id: str) -> Optional[dict]:
     """Get order by order_number (e.g. RESTAURANT_1-0001) or numeric id."""
     with get_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -205,7 +205,7 @@ def get_order_status(order_number_or_id: str, restaurant_id: str = "restaurant_1
     }
 
 
-def update_order_status(order_number: str, new_status: str, restaurant_id: str = "restaurant_1") -> Optional[dict]:
+def update_order_status(order_number: str, new_status: str, restaurant_id: str) -> Optional[dict]:
     """Update order status (e.g. pending -> preparing -> ready). Returns updated order or None."""
     allowed = {"pending", "preparing", "ready", "completed", "cancelled"}
     if new_status.lower() not in allowed:

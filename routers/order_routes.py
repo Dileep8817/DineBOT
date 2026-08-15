@@ -26,7 +26,12 @@ ITEM_NAME_MAX_LEN = 200
 
 
 def _validate_restaurant_id(restaurant_id: str) -> str:
-    rid = (restaurant_id or "").strip() or "restaurant_1"
+    rid = (restaurant_id or "").strip()
+    if not rid:
+        raise HTTPException(
+            status_code=422,
+            detail="restaurant_id is required",
+        )
     if not RESTAURANT_ID_PATTERN.match(rid):
         raise HTTPException(
             status_code=400,
@@ -59,7 +64,7 @@ async def add_item(
     request: Request,
     session_id: str = Query(..., min_length=1, max_length=128),
     name: str = Query(..., min_length=1, max_length=ITEM_NAME_MAX_LEN),
-    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
+    restaurant_id: str = Query(..., min_length=1, max_length=64),
 ):
     _validate_session_id(session_id)
     rid = _validate_restaurant_id(restaurant_id)
@@ -76,7 +81,7 @@ async def add_item(
 async def cart(
     request: Request,
     session_id: str = Query(..., min_length=1, max_length=128),
-    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
+    restaurant_id: str = Query(..., min_length=1, max_length=64),
 ):
     _validate_session_id(session_id)
     rid = _validate_restaurant_id(restaurant_id)
@@ -88,7 +93,7 @@ async def cart(
 async def clear(
     request: Request,
     session_id: str = Query(..., min_length=1, max_length=128),
-    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
+    restaurant_id: str = Query(..., min_length=1, max_length=64),
 ):
     _validate_session_id(session_id)
     rid = _validate_restaurant_id(restaurant_id)
@@ -100,7 +105,7 @@ async def clear(
 async def cart_summary(
     request: Request,
     session_id: str = Query(..., min_length=1, max_length=128),
-    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
+    restaurant_id: str = Query(..., min_length=1, max_length=64),
 ):
     _validate_session_id(session_id)
     rid = _validate_restaurant_id(restaurant_id)
@@ -115,7 +120,7 @@ async def remove_cart(
     request: Request,
     session_id: str = Query(..., min_length=1, max_length=128),
     name: str = Query(..., min_length=1, max_length=ITEM_NAME_MAX_LEN),
-    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
+    restaurant_id: str = Query(..., min_length=1, max_length=64),
 ):
     _validate_session_id(session_id)
     rid = _validate_restaurant_id(restaurant_id)
@@ -130,7 +135,7 @@ async def update_item(
     session_id: str = Query(..., min_length=1, max_length=128),
     name: str = Query(..., min_length=1, max_length=ITEM_NAME_MAX_LEN),
     quantity: int = Query(..., ge=1, le=99),
-    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
+    restaurant_id: str = Query(..., min_length=1, max_length=64),
 ):
     _validate_session_id(session_id)
     rid = _validate_restaurant_id(restaurant_id)
@@ -143,7 +148,7 @@ async def update_item(
 async def checkout(
     request: Request,
     session_id: str = Query(..., min_length=1, max_length=128),
-    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
+    restaurant_id: str = Query(..., min_length=1, max_length=64),
 ):
     _validate_session_id(session_id)
     rid = _validate_restaurant_id(restaurant_id)
@@ -169,7 +174,7 @@ async def order_status(
         max_length=64,
         description="Order number e.g. RESTAURANT_1-0001 or numeric id",
     ),
-    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
+    restaurant_id: str = Query(..., min_length=1, max_length=64),
 ):
     result = get_order_status(order_number, restaurant_id)
     if not result:
@@ -183,7 +188,7 @@ async def set_order_status(
     request: Request,
     order_number: str = Query(..., min_length=1, max_length=64),
     status: str = Query(..., min_length=1, max_length=32),
-    restaurant_id: str = Query("restaurant_1", min_length=1, max_length=64),
+    restaurant_id: str = Query(..., min_length=1, max_length=64),
 ):
     """Update order status (e.g. preparing, ready). For staff/dashboard."""
     result = update_order_status(order_number, status, restaurant_id)

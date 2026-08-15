@@ -9,7 +9,7 @@ SESSION_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
 class ChatRequest(BaseModel):
     session_id: str = Field(..., min_length=1, max_length=128)
     message: str = Field(..., min_length=1, max_length=2000)
-    restaurant_id: str = Field(default="restaurant_1", min_length=1, max_length=64)
+    restaurant_id: str = Field(..., min_length=1, max_length=64)
 
     @field_validator("session_id")
     @classmethod
