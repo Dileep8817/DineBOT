@@ -1,0 +1,33 @@
+{
+  "happy_hour": {
+    "when": "Monday–Friday 4:00–6:00 PM",
+    "details": "Sample data only. $2 off starters and soft drinks."
+  },
+  "daily_specials": [
+    {
+      "day": "Monday",
+      "title": "Sample Pizza Night",
+      "description": "Sample data only. Any pizza with a side salad.",
+      "discount": "$3 off"
+    },
+    {
+      "day": "Wednesday",
+      "title": "Example Bowl Day",
+      "description": "Sample data only. Grain bowl with a drink.",
+      "discount": "$2 off"
+    },
+    {
+      "day": "Friday",
+      "title": "Demo Fish Feature",
+      "description": "Sample data only. Grilled salmon with seasonal sides.",
+      "discount": "Market price"
+    }
+  ],
+  "ongoing": [
+    {
+      "title": "Placeholder loyalty offer",
+      "description": "Sample data only. Every tenth order gets a free side.",
+      "valid": "Ongoing"
+    }
+  ]
+}
