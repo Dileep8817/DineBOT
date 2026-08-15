@@ -2,10 +2,20 @@
 
 import json
 import re
+from pathlib import Path
 
 from config import DATA_DIR
 
 RESTAURANT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
+
+
+class RestaurantDataNotFound(Exception):
+    """Raised when menu.json (or other data file) is missing for a valid restaurant_id."""
+
+    def __init__(self, restaurant_id: str, filename: str):
+        self.restaurant_id = restaurant_id
+        self.filename = filename
+        super().__init__(f"No {filename} for restaurant_id={restaurant_id!r}")
 
 # safety protection protocal
 def _validate_restaurant_id(restaurant_id: str) -> None:
@@ -13,20 +23,25 @@ def _validate_restaurant_id(restaurant_id: str) -> None:
         raise ValueError("restaurant_id must be 1-64 chars: letters, numbers, underscore, hyphen only")
 
 
-def _data_path(restaurant_id: str, filename: str) -> str:
-    return str(DATA_DIR / restaurant_id / filename)
+def _data_path(restaurant_id: str, filename: str) -> Path:
+    return DATA_DIR / restaurant_id / filename
+
+
+def _read_json(restaurant_id: str, filename: str):
+    _validate_restaurant_id(restaurant_id)
+    path = _data_path(restaurant_id, filename)
+    if not path.is_file():
+        raise RestaurantDataNotFound(restaurant_id, filename)
+    with path.open() as f:
+        return json.load(f)
 
 
 def load_menu(restaurant_id: str):
-    _validate_restaurant_id(restaurant_id)
-    with open(_data_path(restaurant_id, "menu.json")) as f:
-        return json.load(f)
+    return _read_json(restaurant_id, "menu.json")
 
 
 def load_hours(restaurant_id: str):
-    _validate_restaurant_id(restaurant_id)
-    with open(_data_path(restaurant_id, "hours.json")) as f:
-        return json.load(f)
+    return _read_json(restaurant_id, "hours.json")
     
 # returns the MENU data
 def get_menu(restaurant_id :str):
@@ -62,9 +77,7 @@ def get_menu_item(restaurant_id: str, name: str):
 
 
 def load_restaurant_info(restaurant_id: str):
-    _validate_restaurant_id(restaurant_id)
-    with open(_data_path(restaurant_id, "info.json")) as f:
-        return json.load(f)
+    return _read_json(restaurant_id, "info.json")
 
 
 def get_restaurant_info(restaurant_id: str):
@@ -72,9 +85,7 @@ def get_restaurant_info(restaurant_id: str):
 
 
 def load_specials(restaurant_id: str):
-    _validate_restaurant_id(restaurant_id)
-    with open(_data_path(restaurant_id, "specials.json")) as f:
-        return json.load(f)
+    return _read_json(restaurant_id, "specials.json")
 
 
 def get_specials(restaurant_id: str):

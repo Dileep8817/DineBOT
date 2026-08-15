@@ -10,6 +10,7 @@ from config import limiter  # loads PROJECT_ROOT/.env before other app modules r
 from auth import assert_api_keys_configured
 from database import init_db
 from routers.menu_routes import router as menu_router
+from services.menu_services import RestaurantDataNotFound
 from routers.order_routes import router as order_router
 from routers.chat_routes import router as chat_router
 from routers.payment_routes import payment_router, webhook_router
@@ -40,6 +41,19 @@ async def value_error_handler(request, exc):
     from fastapi.responses import JSONResponse
 
     return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
+@app.exception_handler(RestaurantDataNotFound)
+async def restaurant_data_not_found_handler(request, exc: RestaurantDataNotFound):
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=404,
+        content={
+            "detail": f"No menu data for restaurant_id={exc.restaurant_id!r} (missing {exc.filename}). "
+            f"Use a folder under DATA_DIR with that name, e.g. data/velvet_fork_kitchen/menu.json."
+        },
+    )
 
 
 app.add_event_handler("startup", on_startup)
