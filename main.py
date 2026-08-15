@@ -23,8 +23,24 @@ logging.basicConfig(
 )
 
 
+def _seed_sample_data_if_requested():
+    """Copy sample_data/ into DATA_DIR when SEED_SAMPLE_DATA is truthy.
+
+    Off by default so a real deployment never has demo restaurants appear; the
+    Docker image turns it on so `docker compose up` has a menu to serve.
+    """
+    if (os.getenv("SEED_SAMPLE_DATA") or "").strip().lower() not in ("1", "true", "yes"):
+        return
+    from scripts.seed_data import seed_sample_data
+
+    seeded = seed_sample_data()
+    if seeded:
+        logging.getLogger(__name__).info("Seeded sample restaurants: %s", ", ".join(seeded))
+
+
 def on_startup():
     assert_api_keys_configured()
+    _seed_sample_data_if_requested()
     init_db()
     try:
         from services.rag_service import index_all_restaurants
