@@ -7,12 +7,13 @@ import "./App.css";
 const SESSION_ID = "session_" + Math.random().toString(36).slice(2, 9);
 
 function getRestaurantId() {
-  const params = new URLSearchParams(window.location.search);
-  return (
-    params.get("restaurant_id") ||
-    process.env.REACT_APP_DEFAULT_RESTAURANT_ID ||
-    "restaurant_1"
+  const fromUrl = new URLSearchParams(window.location.search).get(
+    "restaurant_id"
   );
+  if (fromUrl?.trim()) return fromUrl.trim();
+  const fromEnv = process.env.REACT_APP_DEFAULT_RESTAURANT_ID;
+  if (fromEnv?.trim()) return fromEnv.trim();
+  return null;
 }
 
 function formatBotResponse(data) {
@@ -55,8 +56,9 @@ function formatBotResponse(data) {
 }
 
 function App() {
+  const restaurantId = getRestaurantId();
   const [menu, setMenu] = useState([]);
-  const [menuLoading, setMenuLoading] = useState(true);
+  const [menuLoading, setMenuLoading] = useState(Boolean(restaurantId));
   const [menuError, setMenuError] = useState(false);
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
@@ -84,7 +86,7 @@ function App() {
   }, [messages]);
 
   const loadMenu = useCallback(async () => {
-    const restaurantId = getRestaurantId();
+    if (!restaurantId) return;
     setMenuLoading(true);
     setMenuError(false);
     try {
@@ -99,10 +101,10 @@ function App() {
     } finally {
       setMenuLoading(false);
     }
-  }, []);
+  }, [restaurantId]);
 
   const loadCart = useCallback(async () => {
-    const restaurantId = getRestaurantId();
+    if (!restaurantId) return;
     try {
       const res = await axios.get(apiUrl("/cart"), {
         params: { session_id: SESSION_ID, restaurant_id: restaurantId },
@@ -115,7 +117,7 @@ function App() {
       setCart([]);
       setTotal(0);
     }
-  }, []);
+  }, [restaurantId]);
 
   useEffect(() => {
     loadMenu();
@@ -140,7 +142,7 @@ function App() {
 
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    if (!text || loading || !restaurantId) return;
     setInput("");
     setMessages((m) => [...m, { role: "user", text, key: Date.now() + "u" }]);
     setLoading(true);
@@ -148,7 +150,7 @@ function App() {
       const res = await axios.post(apiUrl("/chat"), {
         session_id: SESSION_ID,
         message: text,
-        restaurant_id: getRestaurantId(),
+        restaurant_id: restaurantId,
       });
       const data = res.data;
       let botText = data.response;
@@ -193,7 +195,7 @@ function App() {
 
   const cartParams = () => ({
     session_id: SESSION_ID,
-    restaurant_id: getRestaurantId(),
+    restaurant_id: restaurantId,
   });
 
   const addToCart = async (name) => {
@@ -251,6 +253,43 @@ function App() {
     setPayOrderID(null);
     setPayOrderNumber(null);
   };
+
+  if (!restaurantId) {
+    return (
+      <div className="app">
+        <header className="header">
+          <h1 className="brand">DineBot</h1>
+          <p className="tagline">Chat, browse, and order — all in one place</p>
+        </header>
+        <main className="main">
+          <section className="no-restaurant">
+            <h2 className="no-restaurant-title">No restaurant selected</h2>
+            <p className="no-restaurant-lead">
+              This app serves one restaurant at a time and needs to know which
+              one.
+            </p>
+            <p className="no-restaurant-hint">
+              Open it with a <code>restaurant_id</code> in the URL:
+              <span className="no-restaurant-code">
+                {window.location.origin}/?restaurant_id=restaurant_1
+              </span>
+            </p>
+            <p className="no-restaurant-sub">Or set a default for the build:</p>
+            <ul className="no-restaurant-list">
+              <li>
+                <code>REACT_APP_DEFAULT_RESTAURANT_ID=restaurant_1</code> in the
+                root <code>.env</code>
+              </li>
+              <li>
+                The slug must match a folder under the API's data directory,
+                e.g. <code>data/restaurant_1/menu.json</code>
+              </li>
+            </ul>
+          </section>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="app">
