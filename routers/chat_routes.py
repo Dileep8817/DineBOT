@@ -29,14 +29,11 @@ from services.chat_tools import (
 )
 from services.llm_service import chat_completion, TOOLS, _serialize_tool_result
 from services.rag_service import retrieve as rag_retrieve
+from services.session_history import get_history, save_history
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
-
-# In-memory conversation history: session_id -> list of OpenAI-format messages (trimmed to last N).
-MAX_HISTORY_MESSAGES = 20
-_session_history = {}
 
 
 def _system_message(restaurant_id: str, session_id: str, rag_context: list = None) -> str:
@@ -147,7 +144,7 @@ async def chat_endpoint(request: Request, body: ChatRequest):
 
     # Build message list: system (with optional RAG context) + history + new user message
     system = _system_message(rid, session_id, rag_context=rag_chunks if rag_chunks else None)
-    history = _session_history.get(session_id, [])
+    history = get_history(session_id, rid)
     messages = [{"role": "system", "content": system}]
     messages.extend(history)
     messages.append({"role": "user", "content": message})
@@ -229,17 +226,11 @@ async def chat_endpoint(request: Request, body: ChatRequest):
         len(final_content or ""),
     )
 
-    # Persist history: append user and this turn's assistant/tool messages
-    turn_messages = []
-    for i in range(len(messages), len(current_messages)):
-        msg = current_messages[i]
-        turn_messages.append(msg)
+    # Persist history: this turn's user message plus the assistant/tool messages
+    # the model produced. save_history applies the size and count bounds.
     history.append({"role": "user", "content": message})
-    history.extend(turn_messages)
-    # Trim to last N messages (keep pairs; avoid huge context)
-    while len(history) > MAX_HISTORY_MESSAGES:
-        history.pop(0)
-    _session_history[session_id] = history
+    history.extend(current_messages[len(messages):])
+    save_history(session_id, rid, history)
 
     # Return cart when relevant (after any cart-affecting turn)
     cart = _get_cart_for_response(session_id, rid)
