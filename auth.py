@@ -90,13 +90,3 @@ def require_api_key(x_api_key: Optional[str] = Header(None, alias="X-API-Key")) 
     if not candidate or not _matches(candidate, keys):
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
     return candidate
-
-
-def optional_api_key(x_api_key: Optional[str] = Header(None, alias="X-API-Key")) -> Optional[str]:
-    """Optional API key; returns the key if present and valid, else None."""
-    if not x_api_key:
-        return None
-    keys = get_api_keys()
-    if keys and _matches(x_api_key.strip(), keys):
-        return x_api_key.strip()
-    return None
