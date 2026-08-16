@@ -6,6 +6,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 from database import get_connection, _next_order_number
+from validation import MAX_QUANTITY, validate_item_name, validate_quantity
 
 
 def _row(row) -> Optional[dict]:
@@ -29,6 +30,17 @@ def create_cart(session_id: str):
 
 
 def add_to_cart(session_id: str, item: dict, quantity: int = 1, *, restaurant_id: str):
+    """Add quantity of a menu item, or increase it if the item is already in the cart.
+
+    Bounds are enforced here rather than only in the REST layer because the LLM
+    tool path calls straight into this function.
+    """
+    quantity = validate_quantity(quantity)
+    item_name = validate_item_name(item.get("name"))
+    price = item.get("price")
+    if price is None or float(price) < 0:
+        raise ValueError("menu item is missing a valid price")
+
     with get_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
@@ -36,9 +48,11 @@ def add_to_cart(session_id: str, item: dict, quantity: int = 1, *, restaurant_id
                 INSERT INTO cart_items (session_id, restaurant_id, item_name, price, quantity, updated_at)
                 VALUES (%s, %s, %s, %s, %s, NOW())
                 ON CONFLICT (session_id, restaurant_id, item_name)
-                DO UPDATE SET quantity = cart_items.quantity + EXCLUDED.quantity, updated_at = NOW()
+                DO UPDATE SET
+                    quantity = LEAST(cart_items.quantity + EXCLUDED.quantity, %s),
+                    updated_at = NOW()
                 """,
-                (session_id, restaurant_id, item["name"], item["price"], quantity),
+                (session_id, restaurant_id, item_name, price, quantity, MAX_QUANTITY),
             )
     return get_cart(session_id, restaurant_id)
 
@@ -85,6 +99,7 @@ def get_cart_total(session_id: str, restaurant_id: str) -> float:
 
 
 def remove_from_cart(session_id: str, name: str, restaurant_id: str) -> List[dict]:
+    name = validate_item_name(name)
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -100,6 +115,9 @@ def remove_from_cart(session_id: str, name: str, restaurant_id: str) -> List[dic
 def update_cart_item(
     session_id: str, name: str, quantity: int, restaurant_id: str
 ) -> List[dict]:
+    """Set an item's quantity. To remove an item use remove_from_cart; 0 is not a valid quantity."""
+    name = validate_item_name(name)
+    quantity = validate_quantity(quantity)
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(

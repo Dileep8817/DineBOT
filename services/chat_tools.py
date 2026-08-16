@@ -8,6 +8,7 @@ from services.order_services import (
     add_to_cart, get_cart, clear_cart, get_cart_total,
     create_cart, remove_from_cart, update_cart_item, place_order, get_order_status
 )
+from validation import validate_item_name, validate_quantity
 
 # Menu Service tools
 def tool_get_menu(restaurant_id: str):
@@ -28,9 +29,14 @@ def tool_create_cart(session_id : str):
     return {"message" : f"Cart created for session {session_id}"}
 
 def tool_add_to_cart(session_id: str, restaurant_id: str, item_name: str, quantity: int = 1):
+    try:
+        item_name = validate_item_name(item_name)
+        quantity = validate_quantity(quantity)
+    except ValueError as e:
+        return {"error": str(e)}
     item = get_menu_item(restaurant_id, item_name)
     if not item:
-        return {"error": "Item not found"}
+        return {"error": f"No menu item matches {item_name!r}."}
     return add_to_cart(session_id, item, quantity=quantity, restaurant_id=restaurant_id)
 
 def tool_get_cart(session_id: str, restaurant_id: str):
@@ -40,9 +46,18 @@ def tool_clear_cart(session_id: str, restaurant_id: str):
     return clear_cart(session_id, restaurant_id)
 
 def tool_remove_from_cart(session_id: str, name: str, restaurant_id: str):
+    try:
+        name = validate_item_name(name)
+    except ValueError as e:
+        return {"error": str(e)}
     return remove_from_cart(session_id, name, restaurant_id)
 
 def tool_update_cart_item(session_id: str, name: str, quantity: int, restaurant_id: str):
+    try:
+        name = validate_item_name(name)
+        quantity = validate_quantity(quantity)
+    except ValueError as e:
+        return {"error": str(e)}
     return update_cart_item(session_id, name, quantity, restaurant_id)
 
 def tool_checkout_cart(session_id: str, restaurant_id: str):

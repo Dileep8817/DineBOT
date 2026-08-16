@@ -61,12 +61,19 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "add_to_cart",
-            "description": "Add a menu item to the customer's cart. Use exact item name from the menu.",
+            "description": "Add a menu item to the customer's cart. Use the exact item name from "
+                           "the menu; if several items match, ask which one instead of guessing.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "item_name": {"type": "string", "description": "Exact menu item name"},
-                    "quantity": {"type": "integer", "description": "Quantity to add", "default": 1},
+                    "quantity": {
+                        "type": "integer",
+                        "description": "Quantity to add (1-99)",
+                        "minimum": 1,
+                        "maximum": 99,
+                        "default": 1,
+                    },
                 },
                 "required": ["item_name"],
             },
@@ -104,12 +111,18 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "update_cart_item",
-            "description": "Update the quantity of an item in the cart (1-99).",
+            "description": "Set the quantity of an item already in the cart (1-99). To take an "
+                           "item out of the cart use remove_from_cart, not quantity 0.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "description": "Item name"},
-                    "quantity": {"type": "integer", "description": "New quantity (1-99)"},
+                    "quantity": {
+                        "type": "integer",
+                        "description": "New quantity (1-99)",
+                        "minimum": 1,
+                        "maximum": 99,
+                    },
                 },
                 "required": ["name", "quantity"],
             },
