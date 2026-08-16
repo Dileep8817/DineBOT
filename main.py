@@ -9,7 +9,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from config import limiter  # loads PROJECT_ROOT/.env before other app modules read env
-from auth import assert_api_keys_configured, dev_mode
+from auth import assert_api_keys_configured, assert_staff_keys_valid, dev_mode
 from database import init_db
 from routers.menu_routes import router as menu_router
 from services.menu_services import AmbiguousMenuItem, RestaurantDataNotFound
@@ -60,6 +60,7 @@ def _index_rag_on_startup():
 
 def on_startup():
     assert_api_keys_configured()
+    assert_staff_keys_valid()
     _seed_sample_data_if_requested()
     init_db()
     _index_rag_on_startup()
