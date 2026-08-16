@@ -30,6 +30,44 @@ def test_add_then_read_cart(client, customer_headers, restaurant_id):
     assert res.json() == [{"name": "Cheese Pizza", "price": 13.0, "quantity": 1}]
 
 
+def test_the_add_route_honours_quantity(client, customer_headers, restaurant_id):
+    """It used to ignore the parameter and add one, including for quantity=500."""
+    res = client.post(
+        "/cart/add",
+        params=cart_params("cart_add_qty", restaurant_id, name="Cheese Pizza", quantity=3),
+        headers=customer_headers,
+    )
+    assert res.status_code == 200
+    assert res.json()["quantity"] == 3
+    assert get_cart("cart_add_qty", restaurant_id)[0]["quantity"] == 3
+
+
+@pytest.mark.parametrize("quantity", [0, -2, MAX_QUANTITY + 1, 500])
+def test_the_add_route_bounds_quantity(client, customer_headers, restaurant_id, quantity):
+    res = client.post(
+        "/cart/add",
+        params=cart_params(
+            "cart_add_bounds", restaurant_id, name="Cheese Pizza", quantity=quantity
+        ),
+        headers=customer_headers,
+    )
+    assert res.status_code == 422
+    assert get_cart("cart_add_bounds", restaurant_id) == []
+
+
+def test_the_add_route_reports_the_resolved_item_name(
+    client, customer_headers, restaurant_id
+):
+    """Adding "sorbet" must say which item was billed, not echo the query."""
+    res = client.post(
+        "/cart/add",
+        params=cart_params("cart_add_name", restaurant_id, name="sorbet"),
+        headers=customer_headers,
+    )
+    assert res.json()["name"] == "Placeholder Fruit Sorbet"
+    assert "Placeholder Fruit Sorbet" in res.json()["message"]
+
+
 def test_adding_the_same_item_twice_increases_the_quantity(restaurant_id):
     item = get_menu_item(restaurant_id, "Cheese Pizza")
     add_to_cart("cart_twice", item, quantity=2, restaurant_id=restaurant_id)

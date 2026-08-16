@@ -38,6 +38,7 @@ async def add_item(
     session_id: str = Query(..., min_length=1, max_length=SESSION_ID_MAX_LEN),
     name: str = Query(..., min_length=1, max_length=ITEM_NAME_MAX_LEN),
     restaurant_id: str = Query(..., min_length=1, max_length=RESTAURANT_ID_MAX_LEN),
+    quantity: int = Query(1, ge=MIN_QUANTITY, le=MAX_QUANTITY),
 ):
     session_id = validate_session_id(session_id)
     rid = validate_restaurant_id(restaurant_id)
@@ -45,8 +46,13 @@ async def add_item(
     item = get_menu_item(rid, name)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
-    add_to_cart(session_id, item, restaurant_id=rid)
-    return {"message": f"{name} added to cart"}
+    add_to_cart(session_id, item, quantity=validate_quantity(quantity), restaurant_id=rid)
+    # The resolved name, not the query: "sorbet" must come back as the item billed.
+    return {
+        "message": f"{item['name']} added to cart",
+        "name": item["name"],
+        "quantity": quantity,
+    }
 
 
 @router.get("/cart")
