@@ -2,13 +2,10 @@
 
 import os
 from contextlib import contextmanager
-from pathlib import Path
 
 import psycopg2
-from dotenv import load_dotenv
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-load_dotenv(PROJECT_ROOT / ".env")
+from config import PROJECT_ROOT  # noqa: F401  importing config loads the project .env
 
 DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
 if not DATABASE_URL:
