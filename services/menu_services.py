@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from config import DATA_DIR
-from validation import validate_restaurant_id
+from validation import validate_item_name, validate_restaurant_id
 
 
 class RestaurantDataNotFound(Exception):
@@ -14,6 +14,18 @@ class RestaurantDataNotFound(Exception):
         self.restaurant_id = restaurant_id
         self.filename = filename
         super().__init__(f"No {filename} for restaurant_id={restaurant_id!r}")
+
+
+class AmbiguousMenuItem(ValueError):
+    """Raised when an item name matches several menu items and no exact match exists."""
+
+    def __init__(self, query: str, matches: list):
+        self.query = query
+        self.matches = matches
+        super().__init__(
+            f"{len(matches)} menu items match {query!r}: {', '.join(matches)}. "
+            "Ask which one is meant."
+        )
 
 def _data_path(restaurant_id: str, filename: str) -> Path:
     return DATA_DIR / restaurant_id / filename
@@ -59,13 +71,27 @@ def search_menu(restaurant_id:  str, query: str):
             results.append(item)
     return results
 
-# function that loops through MENU and returns the first instance of an item; usually when a user asks for specifics on an item
 def get_menu_item(restaurant_id: str, name: str):
-    menu = load_menu(restaurant_id)
-    search_name = name.lower()
-    for item in menu['items']:
-        if search_name in item['name'].lower():
+    """Resolve a customer-supplied name to exactly one menu item, or None.
+
+    Exact (case-insensitive) match wins. Otherwise a substring match is only
+    accepted when it is unique: matching the first item that merely contains the
+    text meant that "pizza" silently resolved to whichever pizza appeared first
+    in menu.json, so a customer could be charged for an item they never named.
+    Several candidates raise AmbiguousMenuItem so the caller can ask.
+    """
+    query = validate_item_name(name).lower()
+    items = load_menu(restaurant_id).get("items", [])
+
+    for item in items:
+        if item.get("name", "").strip().lower() == query:
             return item
+
+    partial = [item for item in items if query in item.get("name", "").strip().lower()]
+    if len(partial) == 1:
+        return partial[0]
+    if len(partial) > 1:
+        raise AmbiguousMenuItem(name.strip(), [item.get("name", "") for item in partial])
     return None
 
 

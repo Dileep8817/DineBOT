@@ -1,7 +1,7 @@
 # this file outlines the tools the LLM can call on
 
 from services.menu_services import (
-    get_menu, get_hours, search_menu, get_menu_item,
+    get_menu, get_hours, search_menu, get_menu_item, AmbiguousMenuItem,
     get_restaurant_info, get_specials, filter_menu_by_dietary, get_allergen_info
 )
 from services.order_services import (
@@ -21,7 +21,15 @@ def tool_search_menu(restaurant_id: str, query: str):
     return search_menu(restaurant_id, query)
 
 def tool_get_menu_item(restaurant_id: str, name: str):
-    return get_menu_item(restaurant_id, name)
+    try:
+        item = get_menu_item(restaurant_id, name)
+    except AmbiguousMenuItem as e:
+        return {"error": str(e), "options": e.matches}
+    except ValueError as e:
+        return {"error": str(e)}
+    if not item:
+        return {"error": f"No menu item matches {name!r}."}
+    return item
 
 # Order Service tools
 def tool_create_cart(session_id : str):
@@ -34,7 +42,11 @@ def tool_add_to_cart(session_id: str, restaurant_id: str, item_name: str, quanti
         quantity = validate_quantity(quantity)
     except ValueError as e:
         return {"error": str(e)}
-    item = get_menu_item(restaurant_id, item_name)
+    try:
+        item = get_menu_item(restaurant_id, item_name)
+    except AmbiguousMenuItem as e:
+        # Never guess: charging for the wrong dish is worse than one more question.
+        return {"error": str(e), "options": e.matches}
     if not item:
         return {"error": f"No menu item matches {item_name!r}."}
     return add_to_cart(session_id, item, quantity=quantity, restaurant_id=restaurant_id)

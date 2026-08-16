@@ -12,7 +12,7 @@ from config import limiter  # loads PROJECT_ROOT/.env before other app modules r
 from auth import assert_api_keys_configured, dev_mode
 from database import init_db
 from routers.menu_routes import router as menu_router
-from services.menu_services import RestaurantDataNotFound
+from services.menu_services import AmbiguousMenuItem, RestaurantDataNotFound
 from routers.order_routes import router as order_router
 from routers.chat_routes import router as chat_router
 from routers.payment_routes import payment_router, webhook_router
@@ -98,6 +98,21 @@ async def value_error_handler(request, exc):
     from fastapi.responses import JSONResponse
 
     return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
+@app.exception_handler(AmbiguousMenuItem)
+async def ambiguous_menu_item_handler(request, exc: AmbiguousMenuItem):
+    """409 rather than picking one of the candidates for the customer."""
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=409,
+        content={
+            "detail": str(exc),
+            "query": exc.query,
+            "matches": exc.matches,
+        },
+    )
 
 
 @app.exception_handler(RestaurantDataNotFound)
