@@ -3,18 +3,16 @@
 import json
 import logging
 import os
-import re
 from pathlib import Path
 
 from dotenv import load_dotenv
 load_dotenv()
 
 from config import DATA_DIR, PROJECT_ROOT
+from validation import RESTAURANT_ID_PATTERN, validate_restaurant_id
 
 logger = logging.getLogger(__name__)
 
-# Same validation as menu_services to avoid path traversal
-RESTAURANT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 _chroma_raw = Path(os.getenv("CHROMA_PERSIST_DIR", "chroma_data"))
 CHROMA_PERSIST_DIR = str(
     _chroma_raw.resolve()
@@ -25,11 +23,6 @@ COLLECTION_NAME = "restaurant_chunks"
 OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
 RAG_TOP_K = int(os.getenv("RAG_TOP_K", "8"))
 EMBEDDING_BATCH_SIZE = 100
-
-
-def _validate_restaurant_id(restaurant_id: str) -> None:
-    if not restaurant_id or not RESTAURANT_ID_PATTERN.match(restaurant_id):
-        raise ValueError("restaurant_id must be 1-64 chars: letters, numbers, underscore, hyphen only")
 
 
 def _get_openai_client():
@@ -59,7 +52,7 @@ def get_embeddings_batch(texts: list):
 
 def _chunk_restaurant(restaurant_id: str):
     """Load menu, info, specials, hours and return list of (text, metadata)."""
-    _validate_restaurant_id(restaurant_id)
+    restaurant_id = validate_restaurant_id(restaurant_id)
     base = str(DATA_DIR / restaurant_id)
     if not os.path.isdir(base):
         return []
@@ -196,7 +189,7 @@ def retrieve(restaurant_id: str, query: str, top_k: int = None) -> list:
     """Return list of relevant chunk texts for the query. Empty if RAG not available or no index."""
     top_k = top_k or RAG_TOP_K
     try:
-        _validate_restaurant_id(restaurant_id)
+        restaurant_id = validate_restaurant_id(restaurant_id)
         query_embedding = get_embedding(query) # converts user query to a embedding
         coll = _get_collection()
         results = coll.query( # searches Chroma database for similar chunks
