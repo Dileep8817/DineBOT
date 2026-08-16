@@ -1,34 +1,30 @@
 import logging
 import os
-import re
 from typing import Optional
 
 import stripe
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from psycopg2.extras import RealDictCursor
 
 from auth import require_api_key
 from config import limiter
 from database import get_connection
 from services.stripe_payment_service import create_payment_intent
+from validation import SESSION_ID_MAX_LEN, validate_session_id
 
 logger = logging.getLogger(__name__)
 
-SESSION_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
-
-# helper function to validate session id
-def _validate_session_id(session_id: str) -> None:
-    if not SESSION_ID_PATTERN.match(session_id):
-        raise HTTPException(
-            status_code=400,
-            detail="session_id: 1-128 chars, alphanumeric, underscore, hyphen only",
-        )
 
 # pydantic model for request body; defines what the /create-intent POST endpoint expects
 class CreateIntentBody(BaseModel):
-    order_id: int
-    session_id: str
+    order_id: int = Field(..., gt=0)
+    session_id: str = Field(..., min_length=1, max_length=SESSION_ID_MAX_LEN)
+
+    @field_validator("session_id")
+    @classmethod
+    def session_id_safe(cls, v: str) -> str:
+        return validate_session_id(v)
 
 # creates a router for all /payment endpoints; automatically applies api key check
 payment_router = APIRouter(
@@ -41,7 +37,6 @@ payment_router = APIRouter(
 @payment_router.post("/create-intent")
 @limiter.limit("30/minute")
 async def create_intent(request: Request, body: CreateIntentBody):
-    _validate_session_id(body.session_id)
     with get_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
