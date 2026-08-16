@@ -1,0 +1,61 @@
+# Local development and demo stack: API + PostgreSQL.
+#
+#   docker compose up --build
+#
+# Defaults to DINEBOT_DEV=1, which accepts the public development keys
+# (dinebot-local-dev for customers, dinebot-local-staff for staff) and enables CORS
+# for the CRA dev server. Set API_KEY and STAFF_API_KEY in the root .env (or the
+# environment) and DINEBOT_DEV=0 for anything reachable by other people.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: dinebot
+      POSTGRES_PASSWORD: dinebot
+      POSTGRES_DB: dinebot
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dinebot -d dinebot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Not published by default: the API talks to it over the compose network.
+    expose:
+      - "5432"
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Set explicitly so a host DATABASE_URL pointing at a local PostgreSQL
+      # cannot leak into the container.
+      DATABASE_URL: postgresql://dinebot:dinebot@db:5432/dinebot
+      # Copy sample_data/ into the data volume on first start, so the stack comes
+      # up with a restaurant to serve.
+      SEED_SAMPLE_DATA: "1"
+      DINEBOT_DEV: "${DINEBOT_DEV:-1}"
+      API_KEY: "${API_KEY:-}"
+      STAFF_API_KEY: "${STAFF_API_KEY:-}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      # Chat and RAG are inert without this; everything else works.
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      OPENAI_MODEL: "${OPENAI_MODEL:-gpt-4o-mini}"
+      RAG_INDEX_ON_STARTUP: "${RAG_INDEX_ON_STARTUP:-1}"
+      STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY:-}"
+      STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:-}"
+    ports:
+      - "8000:8000"
+    volumes:
+      # Named volumes so seeded menus and embeddings survive a rebuild.
+      - restaurant_data:/app/data
+      - chroma_data:/app/chroma_data
+
+volumes:
+  pgdata:
+  restaurant_data:
+  chroma_data:
