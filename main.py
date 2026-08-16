@@ -16,6 +16,7 @@ from services.menu_services import AmbiguousMenuItem, RestaurantDataNotFound
 from routers.order_routes import router as order_router
 from routers.chat_routes import router as chat_router
 from routers.payment_routes import payment_router, webhook_router
+from routers.staff_routes import staff_router
 
 _log_level_name = (os.getenv("LOG_LEVEL") or "INFO").upper()
 logging.basicConfig(
@@ -148,6 +149,7 @@ app.include_router(order_router)
 app.include_router(chat_router)
 app.include_router(payment_router)
 app.include_router(webhook_router)
+app.include_router(staff_router)
 
 
 @app.get("/")
