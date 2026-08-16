@@ -1,12 +1,10 @@
 # Menu and restaurant data; validates restaurant_id to prevent path traversal
 
 import json
-import re
 from pathlib import Path
 
 from config import DATA_DIR
-
-RESTAURANT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
+from validation import validate_restaurant_id
 
 
 class RestaurantDataNotFound(Exception):
@@ -17,18 +15,13 @@ class RestaurantDataNotFound(Exception):
         self.filename = filename
         super().__init__(f"No {filename} for restaurant_id={restaurant_id!r}")
 
-# safety protection protocal
-def _validate_restaurant_id(restaurant_id: str) -> None:
-    if not restaurant_id or not RESTAURANT_ID_PATTERN.match(restaurant_id):
-        raise ValueError("restaurant_id must be 1-64 chars: letters, numbers, underscore, hyphen only")
-
-
 def _data_path(restaurant_id: str, filename: str) -> Path:
     return DATA_DIR / restaurant_id / filename
 
 
 def _read_json(restaurant_id: str, filename: str):
-    _validate_restaurant_id(restaurant_id)
+    # Rejects anything that is not a bare slug, so restaurant_id cannot escape DATA_DIR.
+    restaurant_id = validate_restaurant_id(restaurant_id)
     path = _data_path(restaurant_id, filename)
     if not path.is_file():
         raise RestaurantDataNotFound(restaurant_id, filename)
