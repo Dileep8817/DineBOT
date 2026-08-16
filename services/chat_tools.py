@@ -5,8 +5,8 @@ from services.menu_services import (
     get_restaurant_info, get_specials, filter_menu_by_dietary, get_allergen_info
 )
 from services.order_services import (
-    add_to_cart, get_cart, clear_cart, get_cart_total,
-    create_cart, remove_from_cart, update_cart_item, place_order, get_order_status
+    add_to_cart, get_cart, clear_cart,
+    remove_from_cart, update_cart_item, place_order, get_order_status
 )
 from validation import validate_item_name, validate_quantity
 
@@ -32,10 +32,6 @@ def tool_get_menu_item(restaurant_id: str, name: str):
     return item
 
 # Order Service tools
-def tool_create_cart(session_id : str):
-    create_cart(session_id)
-    return {"message" : f"Cart created for session {session_id}"}
-
 def tool_add_to_cart(session_id: str, restaurant_id: str, item_name: str, quantity: int = 1):
     try:
         item_name = validate_item_name(item_name)

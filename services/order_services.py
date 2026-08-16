@@ -24,11 +24,6 @@ def _cart_row_to_dict(row) -> dict:
     }
 
 
-def create_cart(session_id: str):
-    """No-op when using DB; cart exists when it has rows."""
-    pass
-
-
 def add_to_cart(session_id: str, item: dict, quantity: int = 1, *, restaurant_id: str):
     """Add quantity of a menu item, or increase it if the item is already in the cart.
 
