@@ -5,10 +5,7 @@ import logging
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
-load_dotenv()
-
-from config import DATA_DIR, PROJECT_ROOT
+from config import DATA_DIR, PROJECT_ROOT  # importing config loads the project .env
 from validation import RESTAURANT_ID_PATTERN, validate_restaurant_id
 
 logger = logging.getLogger(__name__)
