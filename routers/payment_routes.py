@@ -62,7 +62,8 @@ async def create_intent(request: Request, body: CreateIntentBody):
                 """
                 UPDATE orders
                 SET stripe_payment_intent_id = %s,
-                    payment_status = 'processing'
+                    payment_status = 'processing',
+                    updated_at = NOW()
                 WHERE id = %s
                 """,
                 (pi["payment_intent_id"], body.order_id),
@@ -96,7 +97,11 @@ async def stripe_webhook(
             with get_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute(
-                        "UPDATE orders SET payment_status = 'paid' WHERE id = %s",
+                        """
+                        UPDATE orders
+                        SET payment_status = 'paid', updated_at = NOW()
+                        WHERE id = %s
+                        """,
                         (int(oid),),
                     )
     return {"received": True}
