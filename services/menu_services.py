@@ -114,7 +114,7 @@ def get_specials(restaurant_id: str):
 def filter_menu_by_dietary(restaurant_id: str, dietary_tag: str):
     """Filter menu items by dietary tag: vegetarian, vegan, gluten-free, dairy-free."""
     menu = load_menu(restaurant_id)
-    tag = dietary_tag.lower().replace(" ", "-").replace("free", "free")
+    tag = dietary_tag.lower().strip().replace(" ", "-")
     if tag == "gluten-free":
         tag = "gluten"
         exclude = True
