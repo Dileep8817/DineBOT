@@ -2,6 +2,7 @@
 
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -67,6 +68,13 @@ def on_startup():
     _index_rag_on_startup()
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup work. Synchronous on purpose: nothing is served until it finishes."""
+    on_startup()
+    yield
+
+
 DEV_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
 
 
@@ -91,7 +99,7 @@ def allowed_origins():
     return []
 
 
-app = FastAPI(title="Restaurant AI Agent")
+app = FastAPI(title="Restaurant AI Agent", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -141,8 +149,6 @@ async def restaurant_data_not_found_handler(request, exc: RestaurantDataNotFound
         },
     )
 
-
-app.add_event_handler("startup", on_startup)
 
 app.include_router(menu_router)
 app.include_router(order_router)
