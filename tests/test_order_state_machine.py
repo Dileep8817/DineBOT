@@ -258,8 +258,97 @@ def test_webhook_rejects_an_unsigned_payload(client, monkeypatch):
     monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_test")
     res = client.post("/payments/webhook", content=b'{"type":"payment_intent.succeeded"}')
     assert res.status_code == 400
-    
-    
+
+
+@pytest.fixture()
+def signed_webhook(client, monkeypatch):
+    """Deliver a webhook event with signature verification stubbed out."""
+    monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_test")
+
+    def deliver(event_type, order_id):
+        event = {
+            "type": event_type,
+            "data": {"object": {"metadata": {"order_id": str(order_id)}}},
+        }
+        monkeypatch.setattr(
+            "stripe.Webhook.construct_event", lambda payload, sig_header, secret: event
+        )
+        return client.post(
+            "/payments/webhook", content=b"{}", headers={"stripe-signature": "t=1,v1=x"}
+        )
+
+    return deliver
+
+
+@pytest.mark.parametrize(
+    "event_type, expected",
+    [
+        ("payment_intent.succeeded", "paid"),
+        ("payment_intent.payment_failed", "failed"),
+        ("payment_intent.canceled", "unpaid"),
+        ("payment_intent.created", "processing"),  # not acted on
+    ],
+)
+def test_webhook_settles_the_payment_status(
+    client, customer_headers, place_order_for, fake_stripe, signed_webhook, event_type, expected
+):
+    session = "sm_hook_" + event_type.replace(".", "_")
+    order = place_order_for(session)
+    res = client.post(
+        "/payments/create-intent",
+        json={"order_id": order["order_id"], "session_id": session},
+        headers=customer_headers,
+    )
+    assert res.status_code == 200
+    assert signed_webhook(event_type, order["order_id"]).status_code == 200
+    assert read_payment_status(order["order_id"]) == expected
+
+
+def test_a_failed_payment_can_be_retried(
+    client, customer_headers, place_order_for, fake_stripe, signed_webhook
+):
+    order = place_order_for("sm_retry")
+    client.post(
+        "/payments/create-intent",
+        json={"order_id": order["order_id"], "session_id": "sm_retry"},
+        headers=customer_headers,
+    )
+    signed_webhook("payment_intent.payment_failed", order["order_id"])
+
+    res = client.post(
+        "/payments/create-intent",
+        json={"order_id": order["order_id"], "session_id": "sm_retry"},
+        headers=customer_headers,
+    )
+    assert res.status_code == 200
+    assert read_payment_status(order["order_id"]) == "processing"
+
+
+def test_a_paid_order_appears_in_the_staff_stream_window(
+    client, customer_headers, staff_headers, place_order_for, restaurant_id, fake_stripe, signed_webhook
+):
+    """The stream polls updated_at, so settling a payment has to move it."""
+    order = place_order_for("sm_hook_stream")
+    before = client.get(
+        "/staff/orders", params={"restaurant_id": restaurant_id}, headers=staff_headers
+    ).json()["orders"]
+    stamp = next(o["updated_at"] for o in before if o["order_number"] == order["order_number"])
+
+    client.post(
+        "/payments/create-intent",
+        json={"order_id": order["order_id"], "session_id": "sm_hook_stream"},
+        headers=customer_headers,
+    )
+    signed_webhook("payment_intent.succeeded", order["order_id"])
+
+    after = client.get(
+        "/staff/orders", params={"restaurant_id": restaurant_id}, headers=staff_headers
+    ).json()["orders"]
+    updated = next(o for o in after if o["order_number"] == order["order_number"])
+    assert updated["payment_status"] == "paid"
+    assert updated["updated_at"] > stamp
+
+
 def test_payment_status_is_reported_to_the_customer(
     client, customer_headers, place_order_for, restaurant_id
 ):

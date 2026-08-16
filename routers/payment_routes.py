@@ -90,7 +90,14 @@ async def stripe_webhook(
     except Exception as e:
         logger.warning("Webhook verify failed: %s", e)
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
-    if event["type"] == "payment_intent.succeeded":
+    # A declined card leaves the order payable: 'failed' is not terminal, and
+    # create-intent refuses only orders already paid, so the customer can retry.
+    status_for_event = {
+        "payment_intent.succeeded": "paid",
+        "payment_intent.payment_failed": "failed",
+        "payment_intent.canceled": "unpaid",
+    }.get(event["type"])
+    if status_for_event:
         obj = event["data"]["object"]
         oid = obj.get("metadata", {}).get("order_id")
         if oid:
@@ -99,9 +106,9 @@ async def stripe_webhook(
                     cur.execute(
                         """
                         UPDATE orders
-                        SET payment_status = 'paid', updated_at = NOW()
+                        SET payment_status = %s, updated_at = NOW()
                         WHERE id = %s
                         """,
-                        (int(oid),),
+                        (status_for_event, int(oid)),
                     )
     return {"received": True}
