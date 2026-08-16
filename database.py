@@ -72,6 +72,15 @@ def init_db():
                     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
                 """
             )
+            # An earlier version of this migration stored the default as the literal
+            # text "'unpaid'" (quotes included), so rows created by it never compare
+            # equal to 'unpaid'. ADD COLUMN IF NOT EXISTS cannot fix an existing
+            # column, so normalise the default and repair those rows.
+            cur.execute("ALTER TABLE orders ALTER COLUMN payment_status SET DEFAULT 'unpaid';")
+            cur.execute(
+                "UPDATE orders SET payment_status = btrim(payment_status, '''') "
+                "WHERE payment_status LIKE '''%';"
+            )
             # The staff order stream polls by (restaurant_id, updated_at).
             cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_orders_restaurant_updated "
