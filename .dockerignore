@@ -1,0 +1,27 @@
+# Secrets: the container gets its configuration from the environment.
+.env
+.env.*
+
+# Live restaurant data and the vector store are volumes, not image content.
+data/
+chroma_data/
+
+# Host-only artefacts
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# The image serves the API only; the React app is built and hosted separately.
+react-frontend/
+
+.git/
+.gitignore
+.github/
+.DS_Store
+.idea/
+.vscode/
+*.log
