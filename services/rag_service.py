@@ -165,20 +165,48 @@ def index_restaurant(restaurant_id: str) -> int:
     return len(texts)
 
 
-def index_all_restaurants() -> int:
-    """Discover data/<restaurant_id>/ and index each. Returns total chunks indexed."""
+def is_indexed(restaurant_id: str) -> bool:
+    """True when the Chroma collection already holds chunks for this restaurant."""
+    try:
+        existing = _get_collection().get(where={"restaurant_id": restaurant_id}, limit=1)
+    except Exception as e:
+        logger.debug("Could not check existing chunks for %s: %s", restaurant_id, e)
+        return False
+    return bool(existing and existing.get("ids"))
+
+
+def index_all_restaurants(force: bool = None) -> int:
+    """Index every restaurant under DATA_DIR that is not indexed yet.
+
+    Embedding is a paid API call, so re-embedding every restaurant on every boot
+    cost money and delayed startup for no benefit. Pass force=True (or set
+    RAG_REINDEX=1) after editing menu data to rebuild.
+    """
+    if force is None:
+        force = (os.getenv("RAG_REINDEX") or "").strip().lower() in ("1", "true", "yes")
     data_dir = str(DATA_DIR)
     if not os.path.isdir(data_dir):
-        logger.warning("RAG: no data/ directory, skipping index")
+        logger.warning("RAG: no data directory at %s, skipping index", data_dir)
         return 0
     total = 0
-    for name in os.listdir(data_dir):
+    skipped = []
+    for name in sorted(os.listdir(data_dir)):
         path = os.path.join(data_dir, name)
-        if os.path.isdir(path) and RESTAURANT_ID_PATTERN.match(name):
-            try:
-                total += index_restaurant(name)
-            except Exception as e:
-                logger.exception("RAG index failed for %s: %s", name, e)
+        if not (os.path.isdir(path) and RESTAURANT_ID_PATTERN.match(name)):
+            continue
+        if not force and is_indexed(name):
+            skipped.append(name)
+            continue
+        try:
+            total += index_restaurant(name)
+        except Exception as e:
+            logger.exception("RAG index failed for %s: %s", name, e)
+    if skipped:
+        logger.info(
+            "RAG: %d restaurant(s) already indexed, skipped (%s). Set RAG_REINDEX=1 to rebuild.",
+            len(skipped),
+            ", ".join(skipped),
+        )
     return total
 
 
