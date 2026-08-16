@@ -39,10 +39,15 @@ def _seed_sample_data_if_requested():
         logging.getLogger(__name__).info("Seeded sample restaurants: %s", ", ".join(seeded))
 
 
-def on_startup():
-    assert_api_keys_configured()
-    _seed_sample_data_if_requested()
-    init_db()
+def _index_rag_on_startup():
+    """Index restaurants that are not in the vector store yet.
+
+    Set RAG_INDEX_ON_STARTUP=0 to skip entirely (e.g. no OPENAI_API_KEY, or
+    indexing is run as a separate job); RAG_REINDEX=1 to rebuild existing ones.
+    """
+    if (os.getenv("RAG_INDEX_ON_STARTUP") or "1").strip().lower() in ("0", "false", "no"):
+        logging.getLogger(__name__).info("RAG startup indexing disabled")
+        return
     try:
         from services.rag_service import index_all_restaurants
 
@@ -51,6 +56,13 @@ def on_startup():
             logging.getLogger(__name__).info("RAG indexed %d chunks on startup", n)
     except Exception as e:
         logging.getLogger(__name__).warning("RAG indexing skipped or failed: %s", e)
+
+
+def on_startup():
+    assert_api_keys_configured()
+    _seed_sample_data_if_requested()
+    init_db()
+    _index_rag_on_startup()
 
 
 DEV_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
