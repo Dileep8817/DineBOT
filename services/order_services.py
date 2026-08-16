@@ -252,6 +252,81 @@ def get_order_for_staff(order_number_or_id: str, restaurant_id: str) -> Optional
     return _fetch_order(order_number_or_id, restaurant_id, None)
 
 
+def list_orders_for_staff(
+    restaurant_id: str,
+    statuses: Optional[List[str]] = None,
+    updated_after: Optional[str] = None,
+    limit: int = 100,
+) -> List[dict]:
+    """Orders for a restaurant, newest change first, with their line items.
+
+    Callers MUST be behind staff authorization (see auth.require_staff_key).
+    updated_after is an ISO timestamp used by the live stream to fetch only what
+    changed since the last poll.
+    """
+    limit = max(1, min(int(limit), 500))
+    clauses = ["restaurant_id = %s"]
+    params: list = [restaurant_id]
+    if statuses:
+        clauses.append("status = ANY(%s)")
+        params.append([s.strip().lower() for s in statuses])
+    if updated_after:
+        clauses.append("updated_at > %s")
+        params.append(updated_after)
+    params.append(limit)
+
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                f"""
+                SELECT id, order_number, session_id, total, status,
+                       COALESCE(payment_status, 'unpaid') AS payment_status,
+                       created_at, updated_at
+                FROM orders
+                WHERE {' AND '.join(clauses)}
+                ORDER BY updated_at ASC
+                LIMIT %s
+                """,
+                tuple(params),
+            )
+            orders = [_row(r) for r in cur.fetchall()]
+            if not orders:
+                return []
+            cur.execute(
+                """
+                SELECT order_id, item_name, price, quantity
+                FROM order_items
+                WHERE order_id = ANY(%s)
+                ORDER BY id
+                """,
+                ([o["id"] for o in orders],),
+            )
+            items_by_order = {}
+            for raw in cur.fetchall():
+                item = _row(raw)
+                items_by_order.setdefault(item["order_id"], []).append(
+                    {
+                        "name": item["item_name"],
+                        "price": float(item["price"]),
+                        "quantity": int(item["quantity"]),
+                    }
+                )
+
+    return [
+        {
+            "order_id": o["id"],
+            "order_number": o["order_number"],
+            "status": o["status"],
+            "payment_status": o["payment_status"],
+            "total": float(o["total"]),
+            "created_at": str(o["created_at"]),
+            "updated_at": str(o["updated_at"]),
+            "items": items_by_order.get(o["id"], []),
+        }
+        for o in orders
+    ]
+
+
 ORDER_STATUSES = ("pending", "preparing", "ready", "completed", "cancelled")
 
 # The kitchen flow, plus cancelling anything not already finished. Nothing leaves
