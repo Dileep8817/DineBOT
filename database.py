@@ -72,6 +72,21 @@ def init_db():
             )
             cur.execute(
                 """
+                CREATE TABLE IF NOT EXISTS chat_history (
+                    session_id VARCHAR(128) NOT NULL,
+                    restaurant_id VARCHAR(64) NOT NULL,
+                    messages JSONB NOT NULL,
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY (session_id, restaurant_id)
+                );
+                """
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_chat_history_updated_at "
+                "ON chat_history (updated_at);"
+            )
+            cur.execute(
+                """
                 CREATE TABLE IF NOT EXISTS order_items (
                     id SERIAL PRIMARY KEY,
                     order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
