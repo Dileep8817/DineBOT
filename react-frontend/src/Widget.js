@@ -135,7 +135,7 @@ function Widget() {
       setCart([]);
       setTotal(0);
     }
-  }, [cartParams]);
+  }, [cartParams, restaurantId]);
 
   useEffect(() => {
     if (!restaurantId) {
