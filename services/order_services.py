@@ -252,22 +252,74 @@ def get_order_for_staff(order_number_or_id: str, restaurant_id: str) -> Optional
     return _fetch_order(order_number_or_id, restaurant_id, None)
 
 
+ORDER_STATUSES = ("pending", "preparing", "ready", "completed", "cancelled")
+
+# The kitchen flow, plus cancelling anything not already finished. Nothing leaves
+# a terminal state: a completed order that can go back to pending would let a
+# paid order be re-run, and re-opening a cancelled order hides that it happened.
+STATUS_TRANSITIONS = {
+    "pending": ("preparing", "cancelled"),
+    "preparing": ("ready", "cancelled"),
+    "ready": ("completed",),
+    "completed": (),
+    "cancelled": (),
+}
+
+
+class InvalidStatusTransition(ValueError):
+    """Raised when a status change is not allowed from the order's current status."""
+
+    def __init__(self, current: str, requested: str):
+        self.current = current
+        self.requested = requested
+        self.allowed = list(STATUS_TRANSITIONS.get(current, ()))
+        allowed = ", ".join(self.allowed) if self.allowed else "nothing (final status)"
+        super().__init__(
+            f"cannot move an order from {current!r} to {requested!r}; allowed from "
+            f"{current!r}: {allowed}"
+        )
+
+
+def next_status(current: str) -> Optional[str]:
+    """The forward step in the kitchen flow, or None at the end of it."""
+    forward = [s for s in STATUS_TRANSITIONS.get(current, ()) if s != "cancelled"]
+    return forward[0] if forward else None
+
+
 def update_order_status(order_number: str, new_status: str, restaurant_id: str) -> Optional[dict]:
-    """Update order status (e.g. pending -> preparing -> ready). Returns updated order or None."""
-    allowed = {"pending", "preparing", "ready", "completed", "cancelled"}
-    if new_status.lower() not in allowed:
-        return None
+    """Advance an order along the status flow. Returns the order, or None if absent.
+
+    Raises ValueError for an unknown status and InvalidStatusTransition for a move
+    the flow does not allow. Callers MUST be staff-authorized.
+    """
+    requested = (new_status or "").strip().lower()
+    if requested not in ORDER_STATUSES:
+        raise ValueError(f"status must be one of: {', '.join(ORDER_STATUSES)}")
+
     with get_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Lock the row so two staff tapping at once cannot both pass the check.
             cur.execute(
                 """
-                UPDATE orders SET status = %s
+                SELECT id, status FROM orders
                 WHERE order_number = %s AND restaurant_id = %s
-                RETURNING id, order_number, status
+                FOR UPDATE
                 """,
-                (new_status.lower(), order_number.upper(), restaurant_id),
+                (order_number.upper(), restaurant_id),
             )
-            row = cur.fetchone()
-    if not row:
-        return None
+            row = _row(cur.fetchone())
+            if not row:
+                return None
+            current = row["status"]
+            if requested == current:
+                return get_order_for_staff(order_number, restaurant_id)
+            if requested not in STATUS_TRANSITIONS.get(current, ()):
+                raise InvalidStatusTransition(current, requested)
+            cur.execute(
+                """
+                UPDATE orders SET status = %s, updated_at = NOW()
+                WHERE id = %s
+                """,
+                (requested, row["id"]),
+            )
     return get_order_for_staff(order_number, restaurant_id)
