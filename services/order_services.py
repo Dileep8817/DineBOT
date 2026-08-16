@@ -190,17 +190,19 @@ def _fetch_order(
     has already checked staff authorization.
     """
     by_id = order_number_or_id.isdigit()
-    key = int(order_number_or_id) if by_id else order_number_or_id.upper()
-    where = "id = %s" if by_id else "order_number = %s"
-    params = [key, restaurant_id]
+    clauses = ["id = %s" if by_id else "order_number = %s", "restaurant_id = %s"]
+    params = [
+        int(order_number_or_id) if by_id else order_number_or_id.upper(),
+        restaurant_id,
+    ]
     if session_id is not None:
-        where += " AND session_id = %s"
+        clauses.append("session_id = %s")
         params.append(session_id)
 
     with get_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
-                f"SELECT {ORDER_COLUMNS} FROM orders WHERE {where} AND restaurant_id = %s",
+                f"SELECT {ORDER_COLUMNS} FROM orders WHERE {' AND '.join(clauses)}",
                 tuple(params),
             )
             order = _row(cur.fetchone())
