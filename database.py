@@ -58,17 +58,24 @@ def init_db():
                     status VARCHAR(32) NOT NULL DEFAULT 'pending',
                     payment_status VARCHAR(32) NOT NULL DEFAULT 'unpaid',
                     stripe_payment_intent_id VARCHAR(255),
-                    created_at TIMESTAMPTZ DEFAULT NOW()
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 );
                 """
             )
-            # Migration for databases created before the payment columns existed.
+            # Migrations for databases created before these columns existed.
             cur.execute(
                 """
                 ALTER TABLE orders
                     ADD COLUMN IF NOT EXISTS payment_status VARCHAR(32) NOT NULL DEFAULT 'unpaid',
-                    ADD COLUMN IF NOT EXISTS stripe_payment_intent_id VARCHAR(255);
+                    ADD COLUMN IF NOT EXISTS stripe_payment_intent_id VARCHAR(255),
+                    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
                 """
+            )
+            # The staff order stream polls by (restaurant_id, updated_at).
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_orders_restaurant_updated "
+                "ON orders (restaurant_id, updated_at);"
             )
             cur.execute(
                 """
