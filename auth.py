@@ -3,13 +3,11 @@
 import logging
 import os
 import secrets
-from pathlib import Path
 from typing import Optional, Set
 
-from dotenv import load_dotenv
 from fastapi import Header, HTTPException
 
-load_dotenv(Path(__file__).resolve().parent / ".env")
+from config import PROJECT_ROOT  # noqa: F401  importing config loads the project .env
 
 logger = logging.getLogger(__name__)
 
