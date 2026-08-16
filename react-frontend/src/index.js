@@ -13,13 +13,14 @@ import reportWebVitals from "./reportWebVitals";
  *   everything else   customer ordering app
  */
 function Root() {
-  const path = window.location.pathname;
+  // Last segment, so a trailing slash or a subpath deployment still matches.
+  const path = window.location.pathname.replace(/\/+$/, "").split("/").pop();
   const params = new URLSearchParams(window.location.search);
 
   let view = <App />;
-  if (path === "/staff" || path === "/staff/") {
+  if (path === "staff") {
     view = <StaffDashboard />;
-  } else if (path === "/widget" || params.get("embed") === "1") {
+  } else if (path === "widget" || params.get("embed") === "1") {
     view = <Widget />;
   }
 
