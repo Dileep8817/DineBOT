@@ -13,7 +13,6 @@ from services.order_services import (
     update_cart_item,
     place_order,
     get_order_status,
-    update_order_status,
 )
 from validation import (
     ITEM_NAME_MAX_LEN,
@@ -166,18 +165,4 @@ async def order_status(
     return result
 
 
-@router.patch("/order/status")
-@limiter.limit("60/minute")
-async def set_order_status(
-    request: Request,
-    order_number: str = Query(..., min_length=1, max_length=ORDER_REF_MAX_LEN),
-    status: str = Query(..., min_length=1, max_length=32),
-    restaurant_id: str = Query(..., min_length=1, max_length=RESTAURANT_ID_MAX_LEN),
-):
-    """Update order status (e.g. preparing, ready). For staff/dashboard."""
-    rid = validate_restaurant_id(restaurant_id)
-    order_ref = validate_order_reference(order_number)
-    result = update_order_status(order_ref, status, rid)
-    if not result:
-        raise HTTPException(status_code=404, detail="Order not found or invalid status")
-    return result
+# Order status changes are staff-only: see PATCH /staff/orders/{order_number}/status.
