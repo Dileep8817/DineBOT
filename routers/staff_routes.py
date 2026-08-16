@@ -6,9 +6,13 @@ changes the whole restaurant's orders, so none of it may be reachable with the
 customer API key.
 """
 
+import asyncio
+import json
 import logging
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 
 from auth import require_staff_key
 from config import limiter
@@ -17,6 +21,7 @@ from services.order_services import (
     STATUS_TRANSITIONS,
     InvalidStatusTransition,
     get_order_for_staff,
+    latest_order_change,
     list_orders_for_staff,
     next_status,
     update_order_status,
@@ -40,6 +45,17 @@ RestaurantId = Query(..., min_length=1, max_length=RESTAURANT_ID_MAX_LEN)
 
 # What the dashboard shows by default: everything still in the kitchen.
 OPEN_STATUSES = ["pending", "preparing", "ready"]
+
+
+def _poll_seconds() -> float:
+    try:
+        return max(0.5, float(os.getenv("STAFF_STREAM_POLL_SECONDS") or 2))
+    except ValueError:
+        return 2.0
+
+
+# Long enough to be quiet, short enough that idle proxies do not drop the connection.
+HEARTBEAT_SECONDS = 15
 
 
 @staff_router.get("/session")
@@ -134,3 +150,70 @@ async def staff_set_order_status(
 def _with_next(order: dict) -> dict:
     """Attach the next forward status so the UI does not duplicate the state machine."""
     return {**order, "next_status": next_status(order["status"])}
+
+
+def _sse(event: str, data) -> bytes:
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n".encode()
+
+
+@staff_router.get("/stream")
+@limiter.limit("30/minute")
+async def staff_stream(request: Request, restaurant_id: str = RestaurantId):
+    """Server-sent events: the open orders now, then every order that changes.
+
+    Changes are found by polling orders.updated_at rather than an in-process event
+    bus, so a dashboard connected to one uvicorn worker still sees orders placed
+    on another one.
+
+    Events: `snapshot` (list of open orders, once), `order` (one order, on insert
+    or status change), and SSE comments as heartbeats.
+    """
+    rid = validate_restaurant_id(restaurant_id)
+    poll = _poll_seconds()
+
+    async def event_stream():
+        cursor = None
+        try:
+            # Seed from the newest change to any order, not just the open ones in
+            # the snapshot, so already-finished orders are not replayed as updates.
+            cursor = await asyncio.to_thread(latest_order_change, rid)
+            snapshot = await asyncio.to_thread(
+                list_orders_for_staff, rid, OPEN_STATUSES, None, 200
+            )
+            yield _sse(
+                "snapshot",
+                {"restaurant_id": rid, "orders": [_with_next(o) for o in snapshot]},
+            )
+
+            since_heartbeat = 0.0
+            while not await request.is_disconnected():
+                changed = await asyncio.to_thread(
+                    list_orders_for_staff, rid, None, cursor, 200
+                )
+                for order in changed:
+                    cursor = order["updated_at"]
+                    yield _sse("order", _with_next(order))
+                if changed:
+                    since_heartbeat = 0.0
+                else:
+                    since_heartbeat += poll
+                    if since_heartbeat >= HEARTBEAT_SECONDS:
+                        since_heartbeat = 0.0
+                        yield b": keepalive\n\n"
+                await asyncio.sleep(poll)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.warning("staff stream failed for %s: %s", rid, e)
+            yield _sse("error", {"detail": "stream interrupted; reconnecting"})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            # Tell nginx not to buffer the response, which would defeat streaming.
+            "X-Accel-Buffering": "no",
+        },
+    )

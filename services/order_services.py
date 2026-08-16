@@ -327,6 +327,22 @@ def list_orders_for_staff(
     ]
 
 
+def latest_order_change(restaurant_id: str) -> Optional[str]:
+    """Timestamp of the most recent change to any order for this restaurant.
+
+    Used to seed the live stream's cursor: seeding it from the open-orders snapshot
+    alone would replay every order that changed after the newest open one.
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT MAX(updated_at)::text FROM orders WHERE restaurant_id = %s",
+                (restaurant_id,),
+            )
+            row = cur.fetchone()
+    return row[0] if row else None
+
+
 ORDER_STATUSES = ("pending", "preparing", "ready", "completed", "cancelled")
 
 # The kitchen flow, plus cancelling anything not already finished. Nothing leaves
