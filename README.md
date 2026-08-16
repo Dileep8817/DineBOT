@@ -172,6 +172,12 @@ The suite needs a reachable PostgreSQL: it derives a `*_test` database from `DAT
 
 Coverage is deliberately concentrated on the parts where a bug is expensive: cart arithmetic and isolation, the order and payment state machines, menu name resolution, and regressions for each security fix above (`tests/test_security_regressions.py`).
 
+The frontend has its own tests, including the staff dashboard rendering against a mocked SSE stream:
+
+```bash
+cd react-frontend && CI=true npm test
+```
+
 ## Deployment notes
 
 Prefer one hostname: serve the SPA and route `/api/*` to FastAPI (nginx `proxy_pass`, stripping `/api` like the dev proxy does), attaching `X-API-Key` upstream so the browser never sees it. Then no CORS configuration is needed. If the API is on its own origin, set `ALLOWED_ORIGINS` to the exact SPA origins and `REACT_APP_API_BASE` to the API base.
